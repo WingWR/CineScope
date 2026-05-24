@@ -1,6 +1,7 @@
 localDocs/
 .env
 .codex/
+.claude/
 
 # Generated data artifacts
 data/raw/
