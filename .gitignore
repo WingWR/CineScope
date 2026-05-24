@@ -1,0 +1,13 @@
+localDocs/
+.env
+.codex/
+
+# Generated data artifacts
+data/raw/
+data/interim/
+data/processed/
+!data/.env.example
+
+# Python cache
+__pycache__/
+*.py[cod]
