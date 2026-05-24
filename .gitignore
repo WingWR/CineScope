@@ -1,6 +1,6 @@
 localDocs/
 .env
-.codex/config.toml
+.codex/
 
 # Generated data artifacts
 data/raw/

@@ -20,6 +20,7 @@ DATA_DIR = ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
 INTERIM_DIR = DATA_DIR / "interim"
 PROCESSED_DIR = DATA_DIR / "processed"
+FINAL_DIR = DATA_DIR / "final"
 
 MOVIELENS_DATASETS = {
     "ml-latest-small": {
@@ -36,6 +37,7 @@ class TmdbConfig:
     base_url: str
     image_base_url: str
     language: str
+    fallback_language: str
     bearer_token: str | None
     api_key: str | None
 
@@ -46,6 +48,7 @@ def ensure_dirs() -> None:
         RAW_DIR / "tmdb",
         INTERIM_DIR,
         PROCESSED_DIR,
+        FINAL_DIR,
     ]:
         path.mkdir(parents=True, exist_ok=True)
 
@@ -72,6 +75,7 @@ def load_tmdb_config() -> TmdbConfig:
         base_url=env.get("TMDB_BASE_URL", "https://api.themoviedb.org/3").rstrip("/"),
         image_base_url=env.get("TMDB_IMAGE_BASE_URL", "https://image.tmdb.org/t/p").rstrip("/"),
         language=env.get("TMDB_DEFAULT_LANGUAGE", "zh-CN"),
+        fallback_language=env.get("TMDB_FALLBACK_LANGUAGE", "en-US"),
         bearer_token=env.get("TMDB_BEARER_TOKEN") or None,
         api_key=env.get("TMDB_API_KEY") or None,
     )
@@ -203,7 +207,7 @@ def load_tmdb_cache(cache_path: Path) -> dict[int, dict[str, Any]]:
             if not line.strip():
                 continue
             record = json.loads(line)
-            tmdb_id = record.get("id")
+            tmdb_id = record.get("_source_tmdb_id") or record.get("id")
             if tmdb_id is not None:
                 cache[int(tmdb_id)] = record
     return cache
@@ -216,18 +220,260 @@ def tmdb_headers(config: TmdbConfig) -> dict[str, str]:
     return headers
 
 
-def fetch_one_tmdb(session: requests.Session, config: TmdbConfig, tmdb_id: int) -> dict[str, Any]:
-    params = {"language": config.language}
+def image_language_param(language: str) -> str:
+    if language == "en-US":
+        return "en-US,en,null"
+    if language.startswith("en"):
+        return f"{language},en,null"
+    return f"{language},en,null"
+
+
+def parse_retry_after(value: str | None) -> float | None:
+    if not value:
+        return None
+    try:
+        return max(float(value), 0.0)
+    except ValueError:
+        return None
+
+
+def choose_image_path(items: Any) -> str | None:
+    if not isinstance(items, list) or not items:
+        return None
+    candidates = [item for item in items if isinstance(item, dict) and item.get("file_path")]
+    if not candidates:
+        return None
+    best = max(
+        candidates,
+        key=lambda item: (
+            item.get("vote_average") or 0,
+            item.get("vote_count") or 0,
+            item.get("width") or 0,
+        ),
+    )
+    return best.get("file_path")
+
+
+def fill_image_paths_from_append(record: dict[str, Any]) -> None:
+    images = record.get("images") if isinstance(record.get("images"), dict) else {}
+    if not record.get("poster_path"):
+        record["poster_path"] = choose_image_path(images.get("posters"))
+    if not record.get("backdrop_path"):
+        record["backdrop_path"] = choose_image_path(images.get("backdrops"))
+
+
+def record_title(record: dict[str, Any]) -> Any:
+    return record.get("title") or record.get("name")
+
+
+def record_original_title(record: dict[str, Any]) -> Any:
+    return record.get("original_title") or record.get("original_name")
+
+
+def record_release_date(record: dict[str, Any]) -> str:
+    return record.get("release_date") or record.get("first_air_date") or ""
+
+
+def record_runtime(record: dict[str, Any]) -> Any:
+    runtime = record.get("runtime")
+    if runtime:
+        return runtime
+    episode_run_time = record.get("episode_run_time")
+    if isinstance(episode_run_time, list) and episode_run_time:
+        return episode_run_time[0]
+    return None
+
+
+def needs_language_fallback(record: dict[str, Any]) -> bool:
+    return any(
+        [
+            not record_title(record),
+            not record.get("overview"),
+            not record_release_date(record),
+            not record_runtime(record),
+            not record.get("poster_path"),
+            not record.get("backdrop_path"),
+        ]
+    )
+
+
+def merge_missing_tmdb_fields(primary: dict[str, Any], fallback: dict[str, Any], fallback_language: str) -> dict[str, Any]:
+    merged = dict(primary)
+    for field in [
+        "title",
+        "name",
+        "overview",
+        "release_date",
+        "first_air_date",
+        "runtime",
+        "episode_run_time",
+        "vote_average",
+        "vote_count",
+        "popularity",
+        "original_language",
+        "status",
+        "poster_path",
+        "backdrop_path",
+        "genres",
+    ]:
+        if not merged.get(field) and fallback.get(field):
+            merged[field] = fallback[field]
+    if merged != primary:
+        merged["_fallback_language_used"] = fallback_language
+    return merged
+
+
+def request_tmdb_detail(
+    session: requests.Session,
+    config: TmdbConfig,
+    tmdb_id: int,
+    language: str,
+    sleep_seconds: float,
+    media_type: str,
+) -> dict[str, Any]:
+    params = {
+        "language": language,
+        "append_to_response": "images",
+        "include_image_language": image_language_param(language),
+    }
     if not config.bearer_token and config.api_key:
         params["api_key"] = config.api_key
-    url = f"{config.base_url}/movie/{tmdb_id}"
-    response = session.get(url, params=params, headers=tmdb_headers(config), timeout=30)
+    url = f"{config.base_url}/{media_type}/{tmdb_id}"
+    last_error: requests.RequestException | None = None
+    for attempt in range(1, 6):
+        response = session.get(url, params=params, headers=tmdb_headers(config), timeout=30)
+        if response.status_code == 429:
+            retry_after = parse_retry_after(response.headers.get("Retry-After"))
+            wait_seconds = retry_after if retry_after is not None else max(sleep_seconds * attempt * 4, 1.0)
+            print(f"TMDb 429 for {tmdb_id}; sleeping {wait_seconds:.1f}s before retry")
+            time.sleep(wait_seconds)
+            continue
+        if response.status_code in {500, 502, 503, 504}:
+            time.sleep(max(sleep_seconds * attempt * 4, 1.0))
+            continue
+        try:
+            response.raise_for_status()
+        except requests.RequestException as error:
+            last_error = error
+            break
+        record = response.json()
+        record["_requested_language"] = language
+        record["_tmdb_media_type"] = media_type
+        record["_source_tmdb_id"] = tmdb_id
+        record["_resolved_tmdb_id"] = record.get("id")
+        fill_image_paths_from_append(record)
+        return record
+    if last_error is not None:
+        raise last_error
     response.raise_for_status()
-    return response.json()
+    raise RuntimeError(f"TMDb request failed for {tmdb_id}")
+
+
+def request_tmdb_find(
+    session: requests.Session,
+    config: TmdbConfig,
+    imdb_tt_id: str,
+    sleep_seconds: float,
+) -> tuple[str, int] | None:
+    params = {"external_source": "imdb_id"}
+    if not config.bearer_token and config.api_key:
+        params["api_key"] = config.api_key
+    url = f"{config.base_url}/find/{imdb_tt_id}"
+    for attempt in range(1, 6):
+        response = session.get(url, params=params, headers=tmdb_headers(config), timeout=30)
+        if response.status_code == 429:
+            retry_after = parse_retry_after(response.headers.get("Retry-After"))
+            wait_seconds = retry_after if retry_after is not None else max(sleep_seconds * attempt * 4, 1.0)
+            print(f"TMDb 429 for find/{imdb_tt_id}; sleeping {wait_seconds:.1f}s before retry")
+            time.sleep(wait_seconds)
+            continue
+        if response.status_code in {500, 502, 503, 504}:
+            time.sleep(max(sleep_seconds * attempt * 4, 1.0))
+            continue
+        response.raise_for_status()
+        payload = response.json()
+        for media_type, key in [("movie", "movie_results"), ("tv", "tv_results")]:
+            results = payload.get(key)
+            if isinstance(results, list) and results:
+                resolved_id = results[0].get("id")
+                if resolved_id is not None:
+                    return media_type, int(resolved_id)
+        return None
+    response.raise_for_status()
+    return None
+
+
+def fetch_one_tmdb(
+    session: requests.Session,
+    config: TmdbConfig,
+    tmdb_id: int,
+    sleep_seconds: float,
+    imdb_tt_id: str | None = None,
+) -> dict[str, Any]:
+    media_type = "movie"
+    try:
+        record = request_tmdb_detail(
+            session=session,
+            config=config,
+            tmdb_id=tmdb_id,
+            language=config.language,
+            sleep_seconds=sleep_seconds,
+            media_type=media_type,
+        )
+    except requests.HTTPError as error:
+        status = error.response.status_code if error.response is not None else None
+        if status != 404:
+            raise
+        media_type = "tv"
+        try:
+            record = request_tmdb_detail(
+                session=session,
+                config=config,
+                tmdb_id=tmdb_id,
+                language=config.language,
+                sleep_seconds=sleep_seconds,
+                media_type=media_type,
+            )
+        except requests.HTTPError as tv_error:
+            tv_status = tv_error.response.status_code if tv_error.response is not None else None
+            if tv_status != 404 or not imdb_tt_id:
+                raise
+            resolved = request_tmdb_find(session, config, imdb_tt_id, sleep_seconds)
+            if resolved is None:
+                raise tv_error
+            media_type, resolved_id = resolved
+            record = request_tmdb_detail(
+                session=session,
+                config=config,
+                tmdb_id=resolved_id,
+                language=config.language,
+                sleep_seconds=sleep_seconds,
+                media_type=media_type,
+            )
+            record["_source_tmdb_id"] = tmdb_id
+            record["_resolved_tmdb_id"] = resolved_id
+            record["_resolved_from_imdb_id"] = imdb_tt_id
+    if config.fallback_language != config.language and needs_language_fallback(record):
+        try:
+            fallback = request_tmdb_detail(
+                session=session,
+                config=config,
+                tmdb_id=tmdb_id,
+                language=config.fallback_language,
+                sleep_seconds=sleep_seconds,
+                media_type=media_type,
+            )
+            record = merge_missing_tmdb_fields(record, fallback, config.fallback_language)
+        except requests.HTTPError as error:
+            status = error.response.status_code if error.response is not None else None
+            if status not in {404}:
+                raise
+    return record
 
 
 def fetch_tmdb_details(
     tmdb_ids: list[int],
+    external_id_by_tmdb_id: dict[int, str],
     config: TmdbConfig,
     cache_path: Path,
     failures_path: Path,
@@ -253,13 +499,19 @@ def fetch_tmdb_details(
         return cache
 
     print(f"Fetching TMDb details: {len(missing)} missing records")
-    failures: list[dict[str, Any]] = []
+    failures: dict[int, dict[str, Any]] = {}
     with requests.Session() as session, cache_path.open("a", encoding="utf-8") as cache_fh:
         for index, tmdb_id in enumerate(missing, start=1):
             last_error = ""
             for attempt in range(1, 4):
                 try:
-                    record = fetch_one_tmdb(session, config, tmdb_id)
+                    record = fetch_one_tmdb(
+                        session,
+                        config,
+                        tmdb_id,
+                        sleep_seconds=sleep_seconds,
+                        imdb_tt_id=external_id_by_tmdb_id.get(tmdb_id),
+                    )
                     cache[int(tmdb_id)] = record
                     cache_fh.write(json_dumps(record) + "\n")
                     cache_fh.flush()
@@ -273,22 +525,18 @@ def fetch_tmdb_details(
                 except requests.RequestException as error:
                     last_error = type(error).__name__
                     time.sleep(sleep_seconds * attempt)
-            else:
-                failures.append({"tmdb_id": tmdb_id, "error": last_error})
-
             if tmdb_id not in cache:
-                failures.append({"tmdb_id": tmdb_id, "error": last_error or "not_found"})
+                failures[tmdb_id] = {"tmdb_id": tmdb_id, "error": last_error or "not_found"}
 
             if index % 50 == 0 or index == len(missing):
                 print(f"TMDb progress: {index}/{len(missing)}")
             time.sleep(sleep_seconds)
 
     if failures:
-        with failures_path.open("a", newline="", encoding="utf-8") as fh:
+        with failures_path.open("w", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(fh, fieldnames=["tmdb_id", "error"])
-            if failures_path.stat().st_size == 0:
-                writer.writeheader()
-            writer.writerows(failures)
+            writer.writeheader()
+            writer.writerows(failures.values())
     return cache
 
 
@@ -301,17 +549,20 @@ def tmdb_image_url(config: TmdbConfig, path: Any, size: str) -> str | None:
 def tmdb_cache_to_frame(cache: dict[int, dict[str, Any]], config: TmdbConfig) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
     for tmdb_id, record in cache.items():
-        release_date = record.get("release_date") or ""
+        release_date = record_release_date(record)
         tmdb_year = int(release_date[:4]) if re.match(r"^\d{4}", release_date) else None
         rows.append(
             {
                 "tmdb_id": tmdb_id,
-                "tmdb_title": record.get("title"),
-                "tmdb_original_title": record.get("original_title"),
+                "tmdb_resolved_id": record.get("_resolved_tmdb_id") or record.get("id") or tmdb_id,
+                "tmdb_resolved_from_imdb_id": record.get("_resolved_from_imdb_id"),
+                "tmdb_media_type": record.get("_tmdb_media_type", "movie"),
+                "tmdb_title": record_title(record),
+                "tmdb_original_title": record_original_title(record),
                 "overview": record.get("overview"),
                 "release_date": release_date or None,
                 "tmdb_year": tmdb_year,
-                "runtime_minutes": record.get("runtime"),
+                "runtime_minutes": record_runtime(record),
                 "tmdb_vote_average": record.get("vote_average"),
                 "tmdb_vote_count": record.get("vote_count"),
                 "tmdb_popularity": record.get("popularity"),
@@ -333,6 +584,99 @@ def weighted_rating(row: pd.Series, global_mean: float, min_votes: float) -> flo
     if votes <= 0:
         return 0.0
     return float((votes / (votes + min_votes)) * mean + (min_votes / (votes + min_votes)) * global_mean)
+
+
+def write_final_outputs(
+    enriched: pd.DataFrame,
+    ratings: pd.DataFrame,
+    tags: pd.DataFrame,
+    features: pd.DataFrame,
+    genre_frame: pd.DataFrame,
+    dataset_name: str,
+) -> dict[str, Any]:
+    final_movies = enriched[enriched["tmdb_id"].notna() & enriched["has_tmdb_detail"]].copy()
+    final_movies["tmdb_id"] = final_movies["tmdb_id"].astype(int)
+
+    final_movie_ids = set(final_movies["movie_id"])
+    final_ratings = ratings[ratings["movie_id"].isin(final_movie_ids)].copy()
+    final_tags = tags[tags["movie_id"].isin(final_movie_ids)].copy()
+    final_features = features[features["movie_id"].isin(final_movie_ids)].copy()
+
+    final_genre_frame = genre_frame[genre_frame["movie_id"].isin(final_movie_ids)].copy()
+    final_genre_stats = (
+        final_genre_frame.groupby("genre")
+        .size()
+        .reset_index(name="movie_count")
+        .sort_values("movie_count", ascending=False)
+        if not final_genre_frame.empty
+        else pd.DataFrame(columns=["genre", "movie_count"])
+    )
+
+    duplicate_tmdb_records = (
+        final_movies[final_movies["tmdb_id"].duplicated(keep=False)]
+        .sort_values(["tmdb_id", "movie_id"])[["movie_id", "tmdb_id", "title", "display_title"]]
+        .to_dict("records")
+    )
+
+    final_movies.to_csv(FINAL_DIR / "movies.csv", index=False)
+    final_ratings.to_csv(FINAL_DIR / "ratings.csv", index=False)
+    final_tags.to_csv(FINAL_DIR / "tags.csv", index=False)
+    final_features.to_csv(FINAL_DIR / "movie_features.csv", index=False)
+    final_genre_stats.to_csv(FINAL_DIR / "genre_stats.csv", index=False)
+
+    def missing_or_blank_count(frame: pd.DataFrame, column: str) -> int:
+        values = frame[column]
+        blank_count = values.astype("string").str.strip().eq("").fillna(False).sum()
+        return int(values.isna().sum() + blank_count)
+
+    summary = {
+        "dataset": dataset_name,
+        "scope": "movies_with_tmdb_detail",
+        "movie_count": int(len(final_movies)),
+        "user_count": int(final_ratings["user_id"].nunique()),
+        "rating_count": int(len(final_ratings)),
+        "tag_count": int(len(final_tags)),
+        "genre_count": int(final_genre_stats["genre"].nunique()) if not final_genre_stats.empty else 0,
+        "rating_mean": float(final_ratings["rating"].mean()),
+        "rating_min": float(final_ratings["rating"].min()),
+        "rating_max": float(final_ratings["rating"].max()),
+        "movie_with_tmdb_id_count": int(final_movies["tmdb_id"].notna().sum()),
+        "movie_with_tmdb_detail_count": int(final_movies["has_tmdb_detail"].sum()),
+    }
+    quality_report = {
+        "scope": "Movies with non-null tmdb_id and successful TMDb detail match",
+        "source_movie_count": int(len(enriched)),
+        "final_movie_count": int(len(final_movies)),
+        "source_movie_with_tmdb_id_count": int(enriched["tmdb_id"].notna().sum()),
+        "source_movie_with_tmdb_detail_count": int(enriched["has_tmdb_detail"].sum()),
+        "dropped_movie_without_tmdb_id_count": int(enriched["tmdb_id"].isna().sum()),
+        "dropped_movie_without_tmdb_detail_count": int(
+            (enriched["tmdb_id"].notna() & ~enriched["has_tmdb_detail"]).sum()
+        ),
+        "dropped_rating_without_tmdb_id_movie_count": int(len(ratings) - len(final_ratings)),
+        "dropped_tag_without_tmdb_id_movie_count": int(len(tags) - len(final_tags)),
+        "tmdb_detail_count": int(final_movies["has_tmdb_detail"].sum()),
+        "tmdb_detail_missing_count": int((~final_movies["has_tmdb_detail"]).sum()),
+        "tmdb_movie_endpoint_count": int((final_movies["tmdb_media_type"] == "movie").sum()),
+        "tmdb_tv_endpoint_count": int((final_movies["tmdb_media_type"] == "tv").sum()),
+        "tmdb_resolved_from_imdb_id_count": int(final_movies["tmdb_resolved_from_imdb_id"].notna().sum()),
+        "movie_id_is_unique": bool(final_movies["movie_id"].is_unique),
+        "tmdb_id_missing_count": int(final_movies["tmdb_id"].isna().sum()),
+        "tmdb_id_duplicate_row_count": int(final_movies["tmdb_id"].duplicated(keep=False).sum()),
+        "tmdb_id_duplicate_records": duplicate_tmdb_records,
+        "display_title_missing_count": missing_or_blank_count(final_movies, "display_title"),
+        "display_year_missing_count": int(final_movies["display_year"].isna().sum()),
+        "overview_missing_count": missing_or_blank_count(final_movies, "overview"),
+        "runtime_minutes_missing_count": int(final_movies["runtime_minutes"].isna().sum()),
+        "poster_url_missing_count": missing_or_blank_count(final_movies, "poster_url"),
+        "backdrop_url_missing_count": missing_or_blank_count(final_movies, "backdrop_url"),
+        "search_text_missing_count": missing_or_blank_count(final_movies, "search_text"),
+        "feature_text_missing_count": missing_or_blank_count(final_features, "feature_text"),
+    }
+
+    (FINAL_DIR / "dataset_summary.json").write_text(json_dumps(summary), encoding="utf-8")
+    (FINAL_DIR / "quality_report.json").write_text(json_dumps(quality_report), encoding="utf-8")
+    return quality_report
 
 
 def build_outputs(
@@ -451,6 +795,14 @@ def build_outputs(
     enriched.to_csv(PROCESSED_DIR / "movies_enriched.csv", index=False)
     features.to_csv(PROCESSED_DIR / "movie_features.csv", index=False)
     genre_stats.to_csv(PROCESSED_DIR / "genre_stats.csv", index=False)
+    final_quality_report = write_final_outputs(
+        enriched=enriched,
+        ratings=ratings,
+        tags=tags,
+        features=features,
+        genre_frame=genre_frame,
+        dataset_name="ml-latest-small",
+    )
 
     summary = {
         "dataset": "ml-latest-small",
@@ -464,6 +816,7 @@ def build_outputs(
         "rating_mean": float(ratings["rating"].mean()),
         "rating_min": float(ratings["rating"].min()),
         "rating_max": float(ratings["rating"].max()),
+        "final_movie_count": final_quality_report["source_movie_with_tmdb_detail_count"],
     }
     (PROCESSED_DIR / "dataset_summary.json").write_text(json_dumps(summary), encoding="utf-8")
     print(f"Wrote processed files to {PROCESSED_DIR}")
@@ -482,9 +835,14 @@ def prepare(args: argparse.Namespace) -> None:
     tmdb_failures_path = RAW_DIR / "tmdb" / "movie_failures.csv"
 
     tmdb_ids = sorted({int(value) for value in links["tmdb_id"].dropna().tolist()})
+    external_id_by_tmdb_id = {
+        int(row.tmdb_id): row.imdb_tt_id
+        for row in links[links["tmdb_id"].notna() & links["imdb_tt_id"].notna()].itertuples()
+    }
     if args.fetch_tmdb:
         tmdb_cache = fetch_tmdb_details(
             tmdb_ids=tmdb_ids,
+            external_id_by_tmdb_id=external_id_by_tmdb_id,
             config=config,
             cache_path=tmdb_cache_path,
             failures_path=tmdb_failures_path,
