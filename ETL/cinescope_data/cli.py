@@ -19,6 +19,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Allow fetching all missing TMDb records. This may issue thousands of requests.",
     )
+    parser.add_argument(
+        "--submission-only",
+        action="store_true",
+        help="Only reformat existing data/final files to match localDocs/RQ.md submission fields.",
+    )
     return parser.parse_args()
 
 
