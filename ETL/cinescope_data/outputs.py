@@ -5,6 +5,7 @@ from typing import Any
 import pandas as pd
 
 from .config import FINAL_DIR
+from .submission import apply_submission_metadata, prepare_submission_frames, remove_non_submission_files
 from .utils import json_dumps, missing_or_blank_count
 
 
@@ -22,7 +23,6 @@ def write_final_outputs(
     final_movie_ids = set(final_movies["movie_id"])
     final_ratings = ratings[ratings["movie_id"].isin(final_movie_ids)].copy()
     final_tags = tags[tags["movie_id"].isin(final_movie_ids)].copy()
-    final_features = features[features["movie_id"].isin(final_movie_ids)].copy()
 
     final_genre_frame = genre_frame[genre_frame["movie_id"].isin(final_movie_ids)].copy()
     final_genre_stats = (
@@ -40,11 +40,18 @@ def write_final_outputs(
         .to_dict("records")
     )
 
-    final_movies.to_csv(FINAL_DIR / "movies.csv", index=False)
-    final_ratings.to_csv(FINAL_DIR / "ratings.csv", index=False)
-    final_tags.to_csv(FINAL_DIR / "tags.csv", index=False)
-    final_features.to_csv(FINAL_DIR / "movie_features.csv", index=False)
-    final_genre_stats.to_csv(FINAL_DIR / "genre_stats.csv", index=False)
+    submission_movies, submission_ratings, submission_tags, submission_genre_stats = prepare_submission_frames(
+        movies=final_movies,
+        ratings=final_ratings,
+        tags=final_tags,
+        genre_stats=final_genre_stats,
+    )
+
+    submission_movies.to_csv(FINAL_DIR / "movies.csv", index=False)
+    submission_ratings.to_csv(FINAL_DIR / "ratings.csv", index=False)
+    submission_tags.to_csv(FINAL_DIR / "tags.csv", index=False)
+    submission_genre_stats.to_csv(FINAL_DIR / "genre_stats.csv", index=False)
+    remove_non_submission_files(FINAL_DIR)
 
     summary = {
         "dataset": dataset_name,
@@ -81,15 +88,12 @@ def write_final_outputs(
         "tmdb_id_missing_count": int(final_movies["tmdb_id"].isna().sum()),
         "tmdb_id_duplicate_row_count": int(final_movies["tmdb_id"].duplicated(keep=False).sum()),
         "tmdb_id_duplicate_records": duplicate_tmdb_records,
-        "display_title_missing_count": missing_or_blank_count(final_movies, "display_title"),
-        "display_year_missing_count": int(final_movies["display_year"].isna().sum()),
         "overview_missing_count": missing_or_blank_count(final_movies, "overview"),
         "runtime_minutes_missing_count": int(final_movies["runtime_minutes"].isna().sum()),
         "poster_url_missing_count": missing_or_blank_count(final_movies, "poster_url"),
         "backdrop_url_missing_count": missing_or_blank_count(final_movies, "backdrop_url"),
-        "search_text_missing_count": missing_or_blank_count(final_movies, "search_text"),
-        "feature_text_missing_count": missing_or_blank_count(final_features, "feature_text"),
     }
+    apply_submission_metadata(quality_report)
 
     (FINAL_DIR / "dataset_summary.json").write_text(json_dumps(summary), encoding="utf-8")
     (FINAL_DIR / "quality_report.json").write_text(json_dumps(quality_report), encoding="utf-8")
