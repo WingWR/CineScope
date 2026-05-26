@@ -40,7 +40,7 @@ def write_final_outputs(
         .to_dict("records")
     )
 
-    submission_movies, submission_ratings, submission_tags, submission_genre_stats = prepare_submission_frames(
+    submission_movies, submission_ratings, submission_tags, submission_genre_stats, finance_stats = prepare_submission_frames(
         movies=final_movies,
         ratings=final_ratings,
         tags=final_tags,
@@ -93,7 +93,7 @@ def write_final_outputs(
         "poster_url_missing_count": missing_or_blank_count(final_movies, "poster_url"),
         "backdrop_url_missing_count": missing_or_blank_count(final_movies, "backdrop_url"),
     }
-    apply_submission_metadata(quality_report)
+    apply_submission_metadata(quality_report, finance_stats)
 
     (FINAL_DIR / "dataset_summary.json").write_text(json_dumps(summary), encoding="utf-8")
     (FINAL_DIR / "quality_report.json").write_text(json_dumps(quality_report), encoding="utf-8")
