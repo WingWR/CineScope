@@ -2,7 +2,16 @@
 
 The frontend reads only `VITE_API_BASE_URL`.
 
-The client talks to one unified business backend. Recommendation algorithms, agents, vector search, or other internal services should be wrapped by that backend and should not appear as frontend dependencies.
+The client talks to one unified business backend. Recommendation algorithms, agents, vector search, or other internal services should be wrapped by that backend and must not appear as frontend dependencies.
+
+The frontend does not maintain response mappers. Backend responses should use the camelCase contract below.
+
+## Common Rules
+
+- All request and response fields use camelCase.
+- Empty list responses return `items: []` for paged/list resources, or `[]` for chart series.
+- Failed or unavailable endpoints should return normal HTTP errors; the frontend will show a connection notice.
+- No mock data is rendered by the client.
 
 ## Movies
 
@@ -16,41 +25,58 @@ Query:
 - `minRating?: number`
 - `sort?: "popularity" | "rating" | "revenue" | "year"`
 
-Response can be either:
+Response:
 
 ```json
-[
-  {
-    "id": 1,
-    "title": "Movie title",
-    "year": 1995,
-    "genres": ["Drama"],
-    "ratingMean": 4.1,
-    "ratingCount": 100,
-    "tags": ["tag"],
-    "overview": "Synopsis",
-    "runtimeMinutes": 120,
-    "tmdbPopularity": 10.5,
-    "budget": 1000000,
-    "revenue": 5000000,
-    "language": "en",
-    "posterUrl": "https://...",
-    "backdropUrl": "https://..."
-  }
-]
+{
+  "items": [
+    {
+      "id": 1,
+      "title": "Movie title",
+      "year": 1995,
+      "genres": ["Drama"],
+      "ratingMean": 4.1,
+      "ratingCount": 100,
+      "tagCount": 12,
+      "tags": ["tag"],
+      "overview": "Synopsis",
+      "runtimeMinutes": 120,
+      "tmdbPopularity": 10.5,
+      "budget": 1000000,
+      "revenue": 5000000,
+      "language": "en",
+      "posterUrl": "https://...",
+      "backdropUrl": "https://..."
+    }
+  ],
+  "total": 1
+}
 ```
-
-or:
-
-```json
-{ "items": [] }
-```
-
-Snake-case fields such as `movie_id`, `title_clean`, `movie_year`, `rating_mean`, `genres_json`, `poster_url`, and `backdrop_url` are also accepted.
 
 ### `GET /movies/:movieId`
 
-Response: one movie object using the same shape as above.
+Response:
+
+```json
+{
+  "id": 1,
+  "title": "Movie title",
+  "year": 1995,
+  "genres": ["Drama"],
+  "ratingMean": 4.1,
+  "ratingCount": 100,
+  "tagCount": 12,
+  "tags": ["tag"],
+  "overview": "Synopsis",
+  "runtimeMinutes": 120,
+  "tmdbPopularity": 10.5,
+  "budget": 1000000,
+  "revenue": 5000000,
+  "language": "en",
+  "posterUrl": "https://...",
+  "backdropUrl": "https://..."
+}
+```
 
 ## Recommendations
 
@@ -68,26 +94,33 @@ Request:
 }
 ```
 
-Response can be either:
+`mode` values:
+
+- `"content"`
+- `"collaborative"`
+- `"agent-ready"`
+
+Response:
 
 ```json
-[
-  {
-    "movie": { "id": 1, "title": "Movie title" },
-    "score": 0.91,
-    "reason": "Why this was recommended",
-    "source": "agent-ready"
-  }
-]
+{
+  "items": [
+    {
+      "movie": {
+        "id": 1,
+        "title": "Movie title",
+        "year": 1995,
+        "genres": ["Drama"],
+        "ratingMean": 4.1,
+        "posterUrl": "https://..."
+      },
+      "score": 0.91,
+      "reason": "Why this was recommended",
+      "source": "agent-ready"
+    }
+  ]
+}
 ```
-
-or:
-
-```json
-{ "items": [] }
-```
-
-For maintainability, prefer camelCase response fields in the backend. The frontend mapper still tolerates a few snake-case aliases on movie and stats response objects during backend iteration.
 
 ## Stats / Atlas
 
@@ -97,6 +130,7 @@ Response:
 
 ```json
 {
+  "dataset": "MovieLens",
   "movieCount": 9727,
   "userCount": 610,
   "ratingCount": 100811,
@@ -106,9 +140,9 @@ Response:
 }
 ```
 
-Snake-case variants are accepted.
-
 ### `GET /stats/genres`
+
+Response:
 
 ```json
 [
@@ -116,9 +150,9 @@ Snake-case variants are accepted.
 ]
 ```
 
-`movie_count` is also accepted.
-
 ### `GET /stats/budget-trend`
+
+Response:
 
 ```json
 [
@@ -126,9 +160,9 @@ Snake-case variants are accepted.
 ]
 ```
 
-`movie_year` and `average_budget` are also accepted.
-
 ### `GET /stats/revenue-budget`
+
+Response:
 
 ```json
 [
@@ -136,9 +170,9 @@ Snake-case variants are accepted.
 ]
 ```
 
-`tmdb_popularity` is also accepted.
-
 ### `GET /stats/correlations`
+
+Response:
 
 ```json
 [

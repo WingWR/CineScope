@@ -7,20 +7,6 @@ import type {
 } from "../../../entities/movie/types";
 import { backendApiClient } from "../../../shared/api";
 import type { ApiClient } from "../../../shared/api/client";
-import type {
-  AtlasSummaryDto,
-  BudgetTrendDto,
-  CorrelationDto,
-  GenreDistributionDto,
-  RevenueBudgetDto,
-} from "./atlasDtos";
-import {
-  mapAtlasSummary,
-  mapBudgetTrend,
-  mapCorrelations,
-  mapGenreDistribution,
-  mapRevenueBudget,
-} from "./atlasMappers";
 
 export type AtlasApi = {
   getSummary(): Promise<AtlasSummary>;
@@ -32,29 +18,24 @@ export type AtlasApi = {
 
 export function createAtlasApi(apiClient: ApiClient): AtlasApi {
   return {
-    async getSummary(): Promise<AtlasSummary> {
-      const response = await apiClient.get<AtlasSummaryDto>("/stats/summary");
-      return mapAtlasSummary(response);
+    getSummary(): Promise<AtlasSummary> {
+      return apiClient.get<AtlasSummary>("/stats/summary");
     },
 
-    async getGenreDistribution(): Promise<GenreDistributionItem[]> {
-      const response = await apiClient.get<GenreDistributionDto[]>("/stats/genres");
-      return mapGenreDistribution(response);
+    getGenreDistribution(): Promise<GenreDistributionItem[]> {
+      return apiClient.get<GenreDistributionItem[]>("/stats/genres");
     },
 
-    async getBudgetTrend(): Promise<BudgetTrendPoint[]> {
-      const response = await apiClient.get<BudgetTrendDto[]>("/stats/budget-trend");
-      return mapBudgetTrend(response);
+    getBudgetTrend(): Promise<BudgetTrendPoint[]> {
+      return apiClient.get<BudgetTrendPoint[]>("/stats/budget-trend");
     },
 
-    async getRevenueBudgetPoints(): Promise<RevenueBudgetPoint[]> {
-      const response = await apiClient.get<RevenueBudgetDto[]>("/stats/revenue-budget");
-      return mapRevenueBudget(response);
+    getRevenueBudgetPoints(): Promise<RevenueBudgetPoint[]> {
+      return apiClient.get<RevenueBudgetPoint[]>("/stats/revenue-budget");
     },
 
-    async getCorrelationCells(): Promise<CorrelationCell[]> {
-      const response = await apiClient.get<CorrelationDto[]>("/stats/correlations");
-      return mapCorrelations(response);
+    getCorrelationCells(): Promise<CorrelationCell[]> {
+      return apiClient.get<CorrelationCell[]>("/stats/correlations");
     },
   };
 }
