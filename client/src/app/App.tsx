@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { AppShell } from "./layout/AppShell";
-import { MovieSearchPage } from "../features/movie-search/MovieSearchPage";
-import { RecommendationPage } from "../features/recommendation/RecommendationPage";
-import { VisualizationPage } from "../features/visualization/VisualizationPage";
+import { MovieSearchPage } from "../pages/movie-search/MovieSearchPage";
+import { RecommendationPage } from "../pages/recommendation/RecommendationPage";
+import { VisualizationPage } from "../pages/visualization/VisualizationPage";
 
 export type AppView = "search" | "recommend" | "atlas";
 

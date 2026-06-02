@@ -21,16 +21,16 @@ export class ApiResponseError extends Error {
 
 export function getUserFacingApiMessage(error: unknown): string {
   if (error instanceof ApiUnavailableError) {
-    return "后端接口尚未配置。设置 VITE_API_BASE_URL 后，页面会自动请求真实接口。";
+    return "Backend API is not configured. Set VITE_API_BASE_URL and the page will request real data.";
   }
 
   if (error instanceof ApiResponseError) {
-    return `接口暂时没有返回可用数据${error.status ? `（HTTP ${error.status}）` : ""}。`;
+    return `The API did not return usable data${error.status ? ` (HTTP ${error.status})` : ""}.`;
   }
 
   if (error instanceof Error) {
     return error.message;
   }
 
-  return "未收到后端响应，请稍后重试。";
+  return "No backend response was received.";
 }

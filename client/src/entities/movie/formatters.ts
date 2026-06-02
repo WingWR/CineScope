@@ -13,7 +13,7 @@ export function formatRuntime(minutes: number): string {
 }
 
 export function formatOptionalRuntime(minutes?: number): string {
-  return typeof minutes === "number" ? formatRuntime(minutes) : "待接口返回";
+  return typeof minutes === "number" ? formatRuntime(minutes) : "Pending";
 }
 
 export function formatMoney(value: number): string {
@@ -33,7 +33,7 @@ export function formatMoney(value: number): string {
 }
 
 export function formatOptionalMoney(value?: number): string {
-  return typeof value === "number" ? formatMoney(value) : "待接口返回";
+  return typeof value === "number" ? formatMoney(value) : "Pending";
 }
 
 export function formatScore(score: number): string {
