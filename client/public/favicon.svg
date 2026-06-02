@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="CineScope">
+  <rect width="64" height="64" rx="16" fill="#11100e"/>
+  <path d="M18 23.5c0-4.7 3.8-8.5 8.5-8.5h11c4.7 0 8.5 3.8 8.5 8.5v17c0 4.7-3.8 8.5-8.5 8.5h-11c-4.7 0-8.5-3.8-8.5-8.5v-17Z" fill="#f2b15c"/>
+  <path d="M23 20h6v8h-6v-8Zm12 0h6v8h-6v-8ZM23 36h6v8h-6v-8Zm12 0h6v8h-6v-8Z" fill="#16120f"/>
+  <path d="M19 32h26" stroke="#16120f" stroke-width="4" stroke-linecap="round"/>
+</svg>
