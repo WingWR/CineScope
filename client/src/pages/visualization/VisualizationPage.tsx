@@ -3,12 +3,12 @@ import { useState } from "react";
 import { ConnectionNotice } from "../../shared/ui/ConnectionNotice";
 import { MetricTile } from "../../shared/ui/MetricTile";
 import { SectionHeader } from "../../shared/ui/SectionHeader";
+import { cx, panelClass, screenClass } from "../../shared/ui/classes";
 import { BudgetTrendChart } from "./components/charts/BudgetTrendChart";
 import { CorrelationMatrix } from "./components/charts/CorrelationMatrix";
 import { GenreBars } from "./components/charts/GenreBars";
 import { RevenueScatter } from "./components/charts/RevenueScatter";
 import { useAtlasData } from "./hooks/useAtlasData";
-import "./styles/visualization.css";
 
 type AtlasView = "scatter" | "trend" | "genres" | "correlation";
 
@@ -24,19 +24,19 @@ export function VisualizationPage() {
   const [activeView, setActiveView] = useState<AtlasView>("scatter");
 
   return (
-    <section className="screen atlas-screen">
+    <section className={screenClass}>
       <SectionHeader
         title="Atlas"
         description="A cinematic data surface for backend-provided revenue, budget, genre, and correlation series."
       />
 
-      <div className="atlas-layout">
-        <aside className="atlas-rail" aria-label="Visualization navigation">
-          <div className="rail-header">
+      <div className="grid grid-cols-[250px_minmax(0,1fr)] items-start gap-[18px] max-[900px]:grid-cols-1">
+        <aside className={cx(panelClass, "sticky top-24 grid gap-4 p-[18px] max-[900px]:static")} aria-label="Visualization navigation">
+          <div className="flex items-start gap-[9px] font-bold text-cinema-text">
             <Activity size={18} />
-            <div>
-              <strong>Visual modules</strong>
-              <span>Linear animated SVG</span>
+            <div className="grid gap-[3px]">
+              <strong className="text-cinema-text">Visual modules</strong>
+              <span className="text-[0.78rem] font-[760] uppercase text-cinema-amber">Linear animated SVG</span>
             </div>
           </div>
 
@@ -44,7 +44,10 @@ export function VisualizationPage() {
             const Icon = view.icon;
             return (
               <button
-                className="atlas-nav-button"
+                className={cx(
+                  "inline-flex min-h-9 w-full items-center justify-start gap-2 rounded-lg border border-transparent bg-[rgba(255,255,255,0.04)] px-3 text-[0.9rem] text-cinema-soft transition-[background,color,transform] duration-[220ms] ease-linear hover:bg-[rgba(255,255,255,0.08)] hover:text-cinema-text",
+                  activeView === view.id && "bg-[rgba(242,177,92,0.16)] text-cinema-amber-strong hover:text-cinema-amber-strong",
+                )}
                 data-selected={activeView === view.id}
                 key={view.id}
                 type="button"
@@ -57,14 +60,14 @@ export function VisualizationPage() {
           })}
         </aside>
 
-        <div className="atlas-canvas">
-          <div className="atlas-metrics">
+        <div className="grid min-w-0 gap-4">
+          <div className="grid grid-cols-3 gap-3 max-[640px]:grid-cols-1">
             <MetricTile label="Movies" value={data?.summary.movieCount?.toLocaleString("en-US") ?? "-"} tone="amber" />
             <MetricTile label="Ratings" value={data?.summary.ratingCount?.toLocaleString("en-US") ?? "-"} tone="teal" />
             <MetricTile label="Genres" value={data?.summary.genreCount ? `${data.summary.genreCount}` : "-"} tone="amber" />
           </div>
 
-          <div className="chart-stage">
+          <div className={cx(panelClass, "min-h-[620px] overflow-hidden p-[clamp(16px,2vw,24px)] max-[640px]:min-h-[520px] max-[640px]:overflow-x-auto")}>
             {errorMessage ? (
               <ConnectionNotice
                 title="Waiting for visualization API"

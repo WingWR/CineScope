@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { GenreDistributionItem } from "../../../../entities/movie/types";
 import { ConnectionNotice } from "../../../../shared/ui/ConnectionNotice";
+import { chartBodyClass, chartCopyClass, chartKickerClass, chartTitleClass, compactChartPanelClass } from "./chartClasses";
 
 type GenreBarsProps = {
   genres: GenreDistributionItem[];
@@ -19,21 +20,28 @@ export function GenreBars({ genres }: GenreBarsProps) {
   const max = Math.max(...genres.map((item) => item.count));
 
   return (
-    <div className="chart-panel chart-panel--bars">
-      <div className="chart-copy">
-        <span>Genre volume</span>
-        <h2>{genres[0]?.genre ?? "Genres"} leads the library</h2>
-        <p>Bars use transform-based linear entry, keeping the chart readable on smaller screens.</p>
+    <div className={compactChartPanelClass}>
+      <div className={chartCopyClass}>
+        <span className={chartKickerClass}>Genre volume</span>
+        <h2 className={chartTitleClass}>{genres[0]?.genre ?? "Genres"} leads the library</h2>
+        <p className={chartBodyClass}>Bars use transform-based linear entry, keeping the chart readable on smaller screens.</p>
       </div>
 
-      <div className="bar-chart" role="img" aria-label="Genre distribution bar chart">
+      <div className="grid gap-[13px] max-[640px]:min-w-[620px]" role="img" aria-label="Genre distribution bar chart">
         {genres.map((item, index) => (
-          <div className="bar-row" key={item.genre} style={{ "--stagger": `${index * 42}ms` } as CSSProperties}>
-            <span>{item.genre}</span>
-            <div>
-              <i style={{ inlineSize: `${(item.count / max) * 100}%` }} />
+          <div
+            className="grid animate-card-in grid-cols-[104px_minmax(0,1fr)_58px] items-center gap-3"
+            key={item.genre}
+            style={{ animationDelay: `${index * 42}ms` } as CSSProperties}
+          >
+            <span className="text-[0.84rem] text-cinema-soft">{item.genre}</span>
+            <div className="h-3 overflow-hidden rounded-full bg-[rgba(255,255,255,0.07)]">
+              <i
+                className="block h-full origin-left animate-bar-grow rounded-[inherit] bg-gradient-to-r from-cinema-amber to-cinema-teal"
+                style={{ inlineSize: `${(item.count / max) * 100}%` }}
+              />
             </div>
-            <strong>{item.count.toLocaleString("en-US")}</strong>
+            <strong className="text-[0.84rem] text-cinema-soft">{item.count.toLocaleString("en-US")}</strong>
           </div>
         ))}
       </div>
