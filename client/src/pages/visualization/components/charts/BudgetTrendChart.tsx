@@ -1,6 +1,18 @@
 import { useMemo } from "react";
 import type { BudgetTrendPoint } from "../../../../entities/movie/types";
 import { ConnectionNotice } from "../../../../shared/ui/ConnectionNotice";
+import {
+  chartBodyClass,
+  chartCopyClass,
+  chartGridLineClass,
+  chartKickerClass,
+  chartLabelClass,
+  chartPanelClass,
+  chartSoftGridLineClass,
+  chartSvgClass,
+  chartTitleClass,
+  trendLineClass,
+} from "./chartClasses";
 import { linePath, scaleLinear } from "./chartMath";
 
 type BudgetTrendChartProps = {
@@ -33,26 +45,26 @@ export function BudgetTrendChart({ points }: BudgetTrendChartProps) {
   }
 
   return (
-    <div className="chart-panel">
-      <div className="chart-copy">
-        <span>Yearly budget trend</span>
-        <h2>Studio scale curve</h2>
-        <p>A linear path animation turns the historical budget series into a readable first-glance motion.</p>
+    <div className={chartPanelClass}>
+      <div className={chartCopyClass}>
+        <span className={chartKickerClass}>Yearly budget trend</span>
+        <h2 className={chartTitleClass}>Studio scale curve</h2>
+        <p className={chartBodyClass}>A linear path animation turns the historical budget series into a readable first-glance motion.</p>
       </div>
 
-      <svg className="chart-svg" viewBox="0 0 760 440" role="img" aria-label="Average budget by year line chart">
-        <path className="chart-grid-line" d="M70 370H700" />
-        <path className="chart-grid-line" d="M70 64V370" />
+      <svg className={chartSvgClass} viewBox="0 0 760 440" role="img" aria-label="Average budget by year line chart">
+        <path className={chartGridLineClass} d="M70 370H700" />
+        <path className={chartGridLineClass} d="M70 64V370" />
         {[1970, 1980, 1990, 2000, 2010, 2020].map((year, index) => (
           <g key={year}>
-            <path className="chart-grid-line chart-grid-line--soft" d={`M${70 + index * 124} 64V370`} />
-            <text className="axis-label" x={70 + index * 124} y="406" textAnchor="middle">
+            <path className={chartSoftGridLineClass} d={`M${70 + index * 124} 64V370`} />
+            <text className={chartLabelClass} x={70 + index * 124} y="406" textAnchor="middle">
               {year}
             </text>
           </g>
         ))}
-        <path className="trend-line trend-line--ghost" d={path} />
-        <path className="trend-line" d={path} />
+        <path className="animate-draw-line fill-none stroke-[rgba(85,214,194,0.2)] [stroke-dasharray:1000] [stroke-dashoffset:1000] [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:12]" d={path} />
+        <path className={trendLineClass} d={path} />
       </svg>
     </div>
   );

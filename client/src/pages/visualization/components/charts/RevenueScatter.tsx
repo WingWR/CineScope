@@ -2,6 +2,18 @@ import { useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type { RevenueBudgetPoint } from "../../../../entities/movie/types";
 import { ConnectionNotice } from "../../../../shared/ui/ConnectionNotice";
+import { cx } from "../../../../shared/ui/classes";
+import {
+  chartBodyClass,
+  chartCopyClass,
+  chartGridLineClass,
+  chartKickerClass,
+  chartLabelClass,
+  chartPanelClass,
+  chartSoftGridLineClass,
+  chartSvgClass,
+  chartTitleClass,
+} from "./chartClasses";
 import { scaleLinear } from "./chartMath";
 
 type RevenueScatterProps = {
@@ -38,44 +50,47 @@ export function RevenueScatter({ points }: RevenueScatterProps) {
   }
 
   return (
-    <div className="chart-panel">
-      <div className="chart-copy">
-        <span>Revenue vs Budget</span>
-        <h2>{activePoint?.title ?? "Revenue map"}</h2>
-        <p>
+    <div className={chartPanelClass}>
+      <div className={chartCopyClass}>
+        <span className={chartKickerClass}>Revenue vs Budget</span>
+        <h2 className={chartTitleClass}>{activePoint?.title ?? "Revenue map"}</h2>
+        <p className={chartBodyClass}>
           Bubble size reflects popularity. The map can consume backend chart series without changing the component
           contract.
         </p>
       </div>
 
-      <svg className="chart-svg" viewBox="0 0 760 440" role="img" aria-label="Revenue and budget scatter chart">
-        <path className="chart-grid-line" d="M64 384H704" />
-        <path className="chart-grid-line" d="M64 54V384" />
+      <svg className={chartSvgClass} viewBox="0 0 760 440" role="img" aria-label="Revenue and budget scatter chart">
+        <path className={chartGridLineClass} d="M64 384H704" />
+        <path className={chartGridLineClass} d="M64 54V384" />
         {[0, 1, 2, 3].map((item) => (
-          <path key={item} className="chart-grid-line chart-grid-line--soft" d={`M64 ${92 + item * 82}H704`} />
+          <path key={item} className={chartSoftGridLineClass} d={`M64 ${92 + item * 82}H704`} />
         ))}
         {plotted.map((point, index) => (
           <g key={point.title}>
             <circle
-              className="scatter-dot"
+              className={cx(
+                "origin-center animate-dot-in fill-[rgba(85,214,194,0.42)] stroke-[rgba(244,239,228,0.78)] transition-[fill,r] duration-[220ms] ease-linear [stroke-width:1]",
+                point.title === activeTitle && "fill-[rgba(242,177,92,0.82)]",
+              )}
               data-active={point.title === activeTitle}
               cx={point.x}
               cy={point.y}
               r={point.r}
-              style={{ "--stagger": `${index * 56}ms` } as CSSProperties}
+              style={{ animationDelay: `${index * 56}ms` } as CSSProperties}
               onMouseEnter={() => setActiveTitle(point.title)}
             />
             {point.title === activeTitle ? (
-              <text className="chart-label" x={point.x + point.r + 8} y={point.y + 4}>
+              <text className={chartLabelClass} x={point.x + point.r + 8} y={point.y + 4}>
                 {point.title}
               </text>
             ) : null}
           </g>
         ))}
-        <text className="axis-label" x="650" y="420">
+        <text className={chartLabelClass} x="650" y="420">
           budget
         </text>
-        <text className="axis-label" x="18" y="70">
+        <text className={chartLabelClass} x="18" y="70">
           revenue
         </text>
       </svg>
