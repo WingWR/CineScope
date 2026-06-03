@@ -26,7 +26,7 @@
 | 页面/模块 | 方法 | 路径 | 前端封装 | 响应形态 | 当前使用情况 |
 | --- | --- | --- | --- | --- | --- |
 | 电影搜索 | `GET` | `/movies` | `movieSearchApi.listMovies` | `{ items: Movie[]; total?: number }` | 已使用 |
-| 电影详情 | `GET` | `/movies/:movieId` | `movieSearchApi.getMovie` | `Movie` | 已封装，当前页面未直接调用 |
+| 电影详情 | `GET` | `/movies/{movieId}` | `movieSearchApi.getMovie` | `Movie` | 已封装，当前页面未直接调用 |
 | 推荐 | `POST` | `/recommendations` | `recommendationApi.recommend` | `{ items: RecommendationItem[] }` | 已使用 |
 | 数据可视化 | `GET` | `/stats/summary` | `atlasApi.getSummary` | `AtlasSummary` | 已使用 |
 | 数据可视化 | `GET` | `/stats/genres` | `atlasApi.getGenreDistribution` | `GenreDistributionItem[]` | 已使用 |
@@ -189,7 +189,7 @@ type CorrelationCell = {
 
 `total` 可选。前端当前只使用 `items`。
 
-### `GET /movies/:movieId`
+### `GET /movies/{movieId}`
 
 用于按电影 ID 获取单部电影详情。该接口已在前端 API 层封装，但当前页面详情面板直接使用 `/movies` 列表项中的数据，尚未单独请求此接口。
 

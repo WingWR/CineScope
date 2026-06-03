@@ -27,9 +27,9 @@ def list_movies(
     )
 
 
-@router.get("/{movie_id}", response_model=Movie)
+@router.get("/{movieId}", response_model=Movie)
 def get_movie(
-    movie_id: str,
+    movieId: str,
     service: MovieService = Depends(get_movie_service),
 ) -> Movie:
-    return service.get_movie(movie_id)
+    return service.get_movie(movieId)
