@@ -1,4 +1,4 @@
-import { Bot, Film, ListFilter, MessageSquareText, Sparkles, UserRound } from "lucide-react";
+import { Bot, Film, Layers3, ListFilter, MessageSquareText, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { RecommendationMode, RecommendationRequest } from "../../entities/movie/types";
 import { ConnectionNotice } from "../../shared/ui/ConnectionNotice";
@@ -18,15 +18,16 @@ import { useRecommendations } from "./hooks/useRecommendations";
 
 const modes: Array<{ value: RecommendationMode; label: string; icon: typeof Film }> = [
   { value: "content", label: "Content", icon: Film },
-  { value: "collaborative", label: "Collaborative", icon: UserRound },
+  { value: "collaborative", label: "Collaborative", icon: Layers3 },
   { value: "agent-ready", label: "Agent", icon: Bot },
 ];
+
+const DEFAULT_RECOMMENDATION_USER_ID = "1";
 
 export function RecommendationPage() {
   const [mode, setMode] = useState<RecommendationMode>("agent-ready");
   const [prompt, setPrompt] = useState("");
   const [seedMovieName, setSeedMovieName] = useState("");
-  const [userId, setUserId] = useState("");
   const [topK, setTopK] = useState(6);
   const [submittedRequest, setSubmittedRequest] = useState<RecommendationRequest | null>(null);
 
@@ -35,10 +36,10 @@ export function RecommendationPage() {
       mode,
       prompt: mode === "agent-ready" ? prompt : "",
       seedMovieName,
-      userId,
+      userId: DEFAULT_RECOMMENDATION_USER_ID,
       topK,
     }),
-    [mode, prompt, seedMovieName, topK, userId],
+    [mode, prompt, seedMovieName, topK],
   );
 
   const { items, isLoading, errorMessage } = useRecommendations(submittedRequest);
@@ -92,7 +93,7 @@ export function RecommendationPage() {
               </div>
             ) : null}
 
-            <div className="grid grid-cols-[1.5fr_0.8fr_0.55fr] gap-3 max-[640px]:grid-cols-1">
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(140px,0.28fr)] gap-3 max-[640px]:grid-cols-1">
               <label className={controlFieldClass}>
                 <span className={controlLabelClass}>Seed movie</span>
                 <input
@@ -101,11 +102,6 @@ export function RecommendationPage() {
                   onChange={(event) => setSeedMovieName(event.target.value)}
                   placeholder="Optional seed title"
                 />
-              </label>
-
-              <label className={controlFieldClass}>
-                <span className={controlLabelClass}>User ID</span>
-                <input className={textInputClass} value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="Optional user id" />
               </label>
 
               <label className={controlFieldClass}>
@@ -152,7 +148,7 @@ export function RecommendationPage() {
               <ConnectionNotice
                 title="Waiting for recommendation API"
                 message={errorMessage}
-                actionHint="Suggested endpoint: POST /recommendations with mode, prompt, seedMovieName, userId, and topK."
+                actionHint="Suggested endpoint: POST /recommendations with the recommendation payload."
               />
             ) : null}
 
