@@ -1,0 +1,1 @@
+"""CineScope server application package."""
