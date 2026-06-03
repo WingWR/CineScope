@@ -1,0 +1,25 @@
+localDocs/
+.env
+.codex/
+.claude/
+.idea/
+
+# Generated data artifacts
+data/raw/
+data/interim/
+data/processed/
+!data/.env.example
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Frontend
+client/node_modules/
+client/dist/
+client/.vite/
+client/.npm-cache/
+client/.idea/
+client/.vite-dev*.log
+client/*.tsbuildinfo
+client/node_modules/.tmp/
