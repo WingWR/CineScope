@@ -27,6 +27,14 @@ def create_app() -> FastAPI:
     app.include_router(recommendations_router)
     app.include_router(stats_router)
 
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {
+            "service": config.app_name,
+            "status": "ok",
+            "version": config.version,
+        }
+
     @app.exception_handler(ModuleNotImplementedError)
     async def handle_module_not_implemented(
         request: Request,
