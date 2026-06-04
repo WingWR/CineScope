@@ -3,7 +3,7 @@ localDocs/
 .codex/
 .claude/
 .idea/
-
+.venv/
 # Generated data artifacts
 data/raw/
 data/interim/
