@@ -134,7 +134,7 @@ class AgentService:
         rag_results: list[RagSearchResult],
     ) -> tuple[str, bool]:
         if not rag_results:
-            return "I could not find enough local project context for this question.", False
+            return "当前没有检索到足够的本地项目资料来回答这个问题。", False
 
         rag_context = self._rag_context_text(rag_results)
         if self.llm_client.is_enabled():
@@ -157,7 +157,7 @@ class AgentService:
         rag_results: list[RagSearchResult],
     ) -> tuple[str, bool]:
         if not items:
-            return "I could not find any local recommendation results for these constraints.", False
+            return "当前没有找到满足这些条件的本地推荐结果。", False
 
         rag_context = self._rag_context_text(rag_results)
         if self.llm_client.is_enabled():
@@ -178,22 +178,22 @@ class AgentService:
         return self._fallback_recommendation_answer(plan, items, rag_results), False
 
     def _fallback_project_answer(self, rag_results: list[RagSearchResult]) -> str:
-        parts = ["Based on local project materials:"]
+        parts = ["根据本地项目资料检索结果："]
         for result in rag_results[:3]:
             headline = result.title or result.source.name
             snippet = result.content.replace("\n", " ").strip()[:120]
-            parts.append(f"{headline}: {snippet}")
+            parts.append(f"{headline} 提到：{snippet}")
         return " ".join(parts)
 
     def _fallback_recommendation_answer(self, plan: AgentPlan, items, rag_results: list[RagSearchResult]) -> str:
-        titles = ", ".join(item.movie.title for item in items[:3])
-        parts = [f"I generated local recommendations for you. Top picks: {titles}."]
+        titles = "、".join(item.movie.title for item in items[:3])
+        parts = [f"我已经按你的条件生成本地推荐，优先结果包括：{titles}。"]
         if plan.genres:
-            parts.append(f"Requested genres: {', '.join(plan.genres)}.")
+            parts.append(f"重点匹配类型：{', '.join(plan.genres)}。")
         if plan.excluded_genres:
-            parts.append(f"Excluded genres: {', '.join(plan.excluded_genres)}.")
+            parts.append(f"已排除类型：{', '.join(plan.excluded_genres)}。")
         if rag_results:
-            parts.append(f"Referenced local context: {rag_results[0].title or rag_results[0].source.name}.")
+            parts.append(f"参考了本地资料：{rag_results[0].title or rag_results[0].source.name}。")
         return " ".join(parts)
 
     def _build_rag_query(self, prompt: str, plan: AgentPlan) -> str:

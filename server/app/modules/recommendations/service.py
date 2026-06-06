@@ -109,12 +109,18 @@ class RecommendationService:
             plan,
         )
         rag_summary = self._build_rag_summary(rag_results)
+        item_rag_summaries = self._build_item_rag_summaries(deduped_items, plan)
         llm_summary = self._build_llm_summary(request.prompt, plan, deduped_items, rag_results)
 
         final_items = [
             item.model_copy(
                 update={
-                    "reason": self._compose_reason(item, plan, rag_summary, llm_summary),
+                    "reason": self._compose_reason(
+                        item,
+                        plan,
+                        item_rag_summaries.get(str(item.movie.id), rag_summary),
+                        llm_summary,
+                    ),
                     "source": "agent-ready",
                 }
             )
@@ -129,7 +135,7 @@ class RecommendationService:
                 plan,
                 intent="recommendation",
                 strategy="local",
-                explanation="Input looked more like project QA, so I fell back to local catalog recommendations.",
+                explanation="检测到输入更像项目问答，因此回退到本地电影库推荐。",
             )
         return plan
 
@@ -209,8 +215,10 @@ class RecommendationService:
     def _local_reason(movie: Movie, plan: AgentPlan) -> str:
         parts: list[str] = []
         if movie.ratingMean is not None:
-            parts.append(f"catalog rating {movie.ratingMean:.1f}")
-        return "; ".join(parts)
+            parts.append(f"本地平均评分：{movie.ratingMean:.1f}")
+        if plan.language and normalize_text(movie.language).lower() == plan.language:
+            parts.append(f"语言匹配：{plan.language}")
+        return "；".join(parts)
 
     def _compose_reason(
         self,
@@ -222,11 +230,9 @@ class RecommendationService:
         details: list[str] = [plan.explanation]
         matched = [genre for genre in item.movie.genres if genre.lower() in {value.lower() for value in plan.genres}]
         if matched:
-            details.append(f"matched genres: {', '.join(matched[:3])}")
-        if plan.language and normalize_text(item.movie.language).lower() == plan.language:
-            details.append(f"matched language: {plan.language}")
+            details.append(f"匹配类型：{', '.join(matched[:3])}")
         if plan.min_rating is not None and item.movie.ratingMean is not None and not item.reason:
-            details.append(f"rating {item.movie.ratingMean:.1f} meets your threshold")
+            details.append(f"评分 {item.movie.ratingMean:.1f} 满足你的要求")
         if item.reason:
             details.append(item.reason)
         if llm_summary:
@@ -243,8 +249,8 @@ class RecommendationService:
         if plan.language:
             parts.append(plan.language)
         if plan.min_rating is not None:
-            parts.append("high rated")
-        parts.append("movie recommendation")
+            parts.append("高分")
+        parts.append("电影推荐")
         if not parts:
             parts.append(normalize_text(prompt))
         return " ".join(part for part in parts if part).strip()
@@ -276,7 +282,34 @@ class RecommendationService:
         snippet = snippet[:100].rstrip("，。；,; ")
         if not snippet:
             return ""
-        return self._trim_reason(f"local context: {title} mentions {snippet}", max_chars=120)
+        return self._trim_reason(f"RAG 补充：{title} 提到 {snippet}", max_chars=120)
+
+    def _build_item_rag_summaries(
+        self,
+        items: list[RecommendationItem],
+        plan: AgentPlan,
+    ) -> dict[str, str]:
+        summaries: dict[str, str] = {}
+        for item in items:
+            summary = self._build_item_rag_summary(item.movie, plan)
+            if summary:
+                summaries[str(item.movie.id)] = summary
+        return summaries
+
+    def _build_item_rag_summary(self, movie: Movie, plan: AgentPlan) -> str:
+        query_parts = [movie.title]
+        query_parts.extend(movie.genres[:2])
+        if movie.language:
+            query_parts.append(movie.language)
+        query = " ".join(part for part in query_parts if normalize_text(part)).strip()
+        if not query:
+            return ""
+
+        rag_results = self._filter_rag_results(self._safe_rag_search(query, top_k=2), plan)
+        related_results = [result for result in rag_results if self._rag_result_relates_to_movie(result, movie)]
+        if not related_results:
+            related_results = rag_results[:1]
+        return self._build_rag_summary(related_results)
 
     def _build_llm_summary(
         self,
@@ -292,7 +325,7 @@ class RecommendationService:
             return self._trim_reason(
                 self.llm_client.chat_sync(
                     build_recommendation_messages(
-                        user_prompt=prompt or "Please recommend some movies.",
+                        user_prompt=prompt or "请推荐一些电影。",
                         plan=plan,
                         rag_context=rag_context,
                         items=items,
@@ -363,6 +396,22 @@ class RecommendationService:
         if genre_value and genre_value in wanted:
             match_count += 1.0
         return match_count, float(result.score)
+
+    @staticmethod
+    def _rag_result_relates_to_movie(result: RagSearchResult, movie: Movie) -> bool:
+        movie_title = normalize_text(movie.title).lower()
+        result_title = normalize_text(result.title).lower()
+        metadata_title = normalize_text(result.metadata.get("title")).lower()
+        if movie_title and (movie_title in result_title or movie_title in metadata_title):
+            return True
+
+        movie_genres = {normalize_text(genre).lower() for genre in movie.genres if normalize_text(genre)}
+        result_genres = {
+            normalize_text(value).lower()
+            for value in result.metadata.get("genres", [])
+            if normalize_text(value)
+        }
+        return bool(movie_genres and result_genres and movie_genres.intersection(result_genres))
 
     @staticmethod
     def _trim_reason(reason: str, max_chars: int = MAX_REASON_CHARS) -> str:

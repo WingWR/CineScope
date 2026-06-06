@@ -185,7 +185,7 @@ class AgentPlanner:
                 intent="project_qa",
                 strategy="qa",
                 message=normalized_message,
-                explanation="Answer based on local project documents and dataset summaries.",
+                explanation="根据本地项目文档和数据集摘要回答问题。",
                 seed_movie_name=extracted_seed,
                 user_id=parsed_user_id,
                 genres=genres,
@@ -198,16 +198,16 @@ class AgentPlanner:
 
         if extracted_seed and personalized and parsed_user_id is not None:
             strategy: RecommendationStrategy = "collaborative"
-            explanation = "Blend seed-movie similarity with collaborative signals."
+            explanation = "结合种子电影和用户偏好生成推荐。"
         elif extracted_seed:
             strategy = "content"
-            explanation = "Expand recommendations from the seed movie."
+            explanation = "基于种子电影扩展相似推荐。"
         elif personalized and parsed_user_id is not None:
             strategy = "collaborative"
-            explanation = "Use collaborative signals from the user profile."
+            explanation = "基于用户画像和协同过滤信号生成推荐。"
         else:
             strategy = "local"
-            explanation = "Filter the local catalog by genre, language, and rating."
+            explanation = "根据本地电影库的类型、语言和评分条件筛选推荐。"
 
         return AgentPlan(
             intent="recommendation",

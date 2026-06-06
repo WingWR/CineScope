@@ -1,8 +1,6 @@
 # CineScope Server
 
-`server/` is the unified FastAPI backend for the React client. It keeps the
-frontend contract stable while composing local movie search, statistics,
-recommendation, lightweight RAG, and an optional DeepSeek-backed agent layer.
+`server/` 是统一的 FastAPI 后端，负责承接前端的电影检索、统计、推荐、轻量 RAG 和可选的 DeepSeek Agent。
 
 ## Implemented Endpoints
 
@@ -23,17 +21,17 @@ POST /agent/chat
 POST /agent/recommend
 ```
 
-## What Each Module Does
+## Modules
 
-- `movies`: loads `data/final/movies.csv`, supports search, filtering, sorting, and detail lookup.
-- `stats`: serves summary cards, genre distribution, budget trend, revenue-budget scatter points, and correlation cells.
-- `recommendations`: proxies the standalone `recommender/` service for `content` and `collaborative` modes, and enriches `agent-ready` responses with local RAG context.
-- `rag`: builds a lightweight in-memory retriever from `data/final/` and `docs/data/`.
-- `agent`: classifies project QA vs recommendation intent, optionally uses DeepSeek to organize answers, and always falls back to deterministic local behavior if LLM access is unavailable.
+- `movies`：读取 `data/final/movies.csv`，提供搜索、筛选、排序和详情
+- `stats`：提供摘要卡片、类型分布、预算趋势、预算/票房散点和相关性矩阵
+- `recommendations`：对接 `recommender/` 的 `content` / `collaborative`，并增强 `agent-ready`
+- `rag`：从 `data/final/` 与 `docs/data/` 构建轻量本地检索
+- `agent`：区分“项目问答”和“电影推荐”，可选调用 DeepSeek，没有 Key 时自动降级
 
 ## RAG Data Sources
 
-The local RAG layer only reads existing project files:
+本地 RAG 只读取这些现有文件：
 
 ```text
 data/final/dataset_summary.json
@@ -43,12 +41,11 @@ data/final/movies.csv
 docs/data/*.md
 ```
 
-It does not ingest `ratings.csv` or `tags.csv` row-by-row. Recommendation
-results still come from the local recommender service or local catalog fallback.
+不会逐行索引 `ratings.csv` 或 `tags.csv`。
 
 ## Environment Variables
 
-Recommended variables for local development:
+推荐在项目根目录使用 `.env`：
 
 ```env
 RECOMMENDER_BASE_URL=http://127.0.0.1:8010
@@ -61,40 +58,45 @@ AGENT_MAX_CONTEXT_CHARS=5000
 AGENT_MAX_RAG_RESULTS=5
 ```
 
-- The backend now auto-loads `D:\205zd\Desktop\CS\.env` first, and then `D:\205zd\Desktop\CS\server\.env` if it exists.
-- A ready-to-edit template is available at `D:\205zd\Desktop\CS\.env.example`.
-- If `DEEPSEEK_API_KEY` is empty, the agent automatically falls back to rule-based behavior.
-- If `AGENT_USE_LLM=false`, the DeepSeek client is disabled even if a key exists.
-- `CINESCOPE_RECOMMENDER_BASE_URL` is still supported for backward compatibility, but `RECOMMENDER_BASE_URL` is preferred.
+- 后端会优先自动读取 `D:\205zd\Desktop\CS\.env`
+- 模板文件在 `D:\205zd\Desktop\CS\.env.example`
+- `DEEPSEEK_API_KEY` 留空时，自动走本地规则版 Agent
+- `AGENT_USE_LLM=false` 时，即使有 Key 也不会调用 DeepSeek
+- `RECOMMENDER_BASE_URL` 是推荐服务地址
 
 ## Local Setup
 
-Install dependencies:
+安装依赖：
 
 ```powershell
 py -m pip install -r server/requirements.txt
 py -m pip install -r recommender/requirements.txt
 ```
 
-Start the recommender service first:
+先启动推荐服务：
 
 ```powershell
 py -m uvicorn recommender.app.main:app --host 127.0.0.1 --port 8010
 ```
 
-Then start the unified backend:
+再启动统一后端：
 
 ```powershell
 py -m uvicorn server.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-The frontend example config should point to:
+前端示例配置：
 
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-Default CORS allows both `http://127.0.0.1:5173` and `http://localhost:5173`.
+默认 CORS 放行：
+
+```text
+http://127.0.0.1:5173
+http://localhost:5173
+```
 
 ## Manual Smoke Checks
 
@@ -102,14 +104,14 @@ Default CORS allows both `http://127.0.0.1:5173` and `http://localhost:5173`.
 
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/rag/search -ContentType 'application/json' -Body '{"query":"Toy Story","topK":3}'
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/rag/search -ContentType 'application/json' -Body '{"query":"数据集 有多少评分","topK":3}'
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/rag/search -ContentType 'application/json' -Body '{"query":"科幻 高分","topK":3}'
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/rag/search -ContentType 'application/json' -Body '{"query":"dataset rating count","topK":3}'
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/rag/search -ContentType 'application/json' -Body '{"query":"high rated sci-fi","topK":3}'
 ```
 
 ### Agent Project QA
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/agent/chat -ContentType 'application/json' -Body '{"message":"你们的数据集有多少电影和评分？"}'
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/agent/chat -ContentType 'application/json' -Body '{"message":"这个数据集有多少电影和评分？"}'
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/agent/chat -ContentType 'application/json' -Body '{"message":"MovieLens 和 IMDb 在这个项目里分别提供了什么？"}'
 ```
 
@@ -127,6 +129,6 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/recommendations -Conte
 
 ## Notes
 
-- Recommendation artifacts must exist under `recommender/artifacts/`.
-- The RAG layer is intentionally lightweight and in-memory; no FAISS, Chroma, LangChain, or external embedding service is required.
-- DeepSeek is only used to rewrite answers and explanations. It never becomes the source of truth for movie IDs, titles, scores, or project statistics.
+- `recommender/artifacts/` 需要存在
+- 当前 RAG 是轻量内存版，不依赖 FAISS、Chroma、LangChain 或外部 embedding 服务
+- DeepSeek 只负责组织答案和解释，不负责决定电影 ID、电影标题、评分或统计结果
