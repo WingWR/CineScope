@@ -90,7 +90,37 @@ class InMemoryRagStore:
                 score += 2.0
             if query_tokens.issubset(indexed.metadata_tokens):
                 score += 1.5
+        score += _source_boost(indexed, query_text, query_tokens)
         return score
+
+
+def _source_boost(
+    indexed: _IndexedRagDocument,
+    query_text: str,
+    query_tokens: set[str],
+) -> float:
+    source_id = indexed.document.source_id
+    boost = 0.0
+
+    if _looks_like_stats_query(query_text, query_tokens):
+        if source_id == "dataset_summary":
+            boost += 4.0
+        elif source_id == "quality_report":
+            boost += 3.0
+        elif source_id == "genre_stats":
+            boost += 2.5
+        elif source_id == "movies":
+            boost -= 1.0
+
+    if _looks_like_schema_query(query_text, query_tokens):
+        if indexed.document.source_type == "markdown":
+            boost += 2.5
+        if "field" in indexed.title_tokens or "字段" in indexed.title_tokens:
+            boost += 1.5
+
+    if _looks_like_quality_query(query_text, query_tokens) and source_id == "quality_report":
+        boost += 2.5
+    return boost
 
 
 def _flatten_metadata(metadata: dict[str, object]) -> list[str]:
@@ -115,3 +145,60 @@ def _tokenize(text: str) -> list[str]:
         else:
             tokens.append(match)
     return [token for token in tokens if token]
+
+
+def _looks_like_stats_query(query_text: str, query_tokens: set[str]) -> bool:
+    keywords = {
+        "dataset",
+        "summary",
+        "count",
+        "counts",
+        "rating",
+        "ratings",
+        "user",
+        "users",
+        "tag",
+        "tags",
+        "statistics",
+        "stats",
+        "数据集",
+        "统计",
+        "多少",
+        "评分",
+        "用户",
+        "标签",
+        "概览",
+        "摘要",
+    }
+    return any(keyword in query_text for keyword in keywords) or bool(query_tokens.intersection(keywords))
+
+
+def _looks_like_schema_query(query_text: str, query_tokens: set[str]) -> bool:
+    keywords = {
+        "field",
+        "fields",
+        "column",
+        "columns",
+        "schema",
+        "格式",
+        "字段",
+        "列",
+        "结构",
+    }
+    return any(keyword in query_text for keyword in keywords) or bool(query_tokens.intersection(keywords))
+
+
+def _looks_like_quality_query(query_text: str, query_tokens: set[str]) -> bool:
+    keywords = {
+        "quality",
+        "clean",
+        "cleaning",
+        "missing",
+        "duplicate",
+        "duplicates",
+        "质量",
+        "清洗",
+        "缺失",
+        "重复",
+    }
+    return any(keyword in query_text for keyword in keywords) or bool(query_tokens.intersection(keywords))
