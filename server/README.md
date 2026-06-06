@@ -1,113 +1,134 @@
 # CineScope Server
 
-`server/` 是 CineScope 的统一业务后端目录。当前只搭建模块化框架，不实现具体业务逻辑。
+`server/` 是统一的 FastAPI 后端，负责承接前端的电影检索、统计、推荐、轻量 RAG 和可选的 DeepSeek Agent。
 
-前端只连接这个业务后端。`server` 对外只暴露前端契约中需要的接口；推荐服务、RAG、Agent、模型推理都作为后端内部模块被业务接口编排调用。
-
-## 目录结构
+## Implemented Endpoints
 
 ```text
-server/
-  app/
-    main.py
-
-    core/
-      config.py
-      paths.py
-      errors.py
-      response.py
-
-    shared/
-      cache.py
-      csv_loader.py
-      json_loader.py
-      text_utils.py
-
-    modules/
-      movies/
-        router.py
-        schemas.py
-        service.py
-        repository.py
-        mappers.py
-
-      recommendations/
-        router.py
-        schemas.py
-        service.py
-        recommender_client.py
-        mappers.py
-
-      stats/
-        router.py
-        schemas.py
-        service.py
-        repository.py
-
-      revenue/
-        schemas.py
-        service.py
-
-      rag/
-        schemas.py
-        service.py
-        document_loader.py
-        indexer.py
-        retriever.py
-        vector_store.py
-
-      agent/
-        schemas.py
-        service.py
-        planner.py
-        tools.py
-        prompts.py
-
-  requirements.txt
-  README.md
-```
-
-## 模块职责
-
-`movies`：电影搜索、筛选、排序、详情查询。后续读取 `data/final/movies.csv`，输出前端需要的 `Movie` 数据结构。
-
-`recommendations`：统一推荐接口。后续适配已有 `recommender/` 微服务，并把推荐结果转换成前端的 `RecommendationItem`。`agent-ready` 模式也通过这个接口进入后端，不额外暴露 `/agent`。
-
-`stats`：前端 Atlas 可视化数据接口。后续读取 `dataset_summary.json`、`genre_stats.csv` 和 `movies.csv`，返回图表 JSON 序列。
-
-`revenue`：内部票房预测能力模块。后续接入 `models/revenue_predictor.py`，供推荐或 Agent 编排使用，不直接暴露给前端。
-
-`rag`：内部知识库加载、索引构建和检索模块。后续可接入 ChromaDB、sentence-transformers，或先用轻量检索实现，不直接暴露给前端。
-
-`agent`：内部自然语言 Agent 编排层。后续调用 RAG、电影搜索、推荐、票房预测等内部能力，并通过 `/recommendations` 的 `agent-ready` 模式对前端提供结果。
-
-`core`：全局配置、路径、异常和统一响应。
-
-`shared`：无业务含义的通用工具。
-
-## 当前接口占位
-
-当前只预留前端已依赖的公开接口入口，service 均返回 `501 Not Implemented`：
-
-```text
+GET  /health
 GET  /movies
 GET  /movies/{movieId}
-
 POST /recommendations
-
 GET  /stats/summary
 GET  /stats/genres
 GET  /stats/budget-trend
 GET  /stats/revenue-budget
 GET  /stats/correlations
+POST /rag/search
+POST /rag/index
+GET  /rag/sources
+POST /agent/chat
+POST /agent/recommend
 ```
 
-## 运行方式
+## Modules
 
-安装依赖后可从项目根目录运行：
+- `movies`：读取 `data/final/movies.csv`，提供搜索、筛选、排序和详情
+- `stats`：提供摘要卡片、类型分布、预算趋势、预算/票房散点和相关性矩阵
+- `recommendations`：对接 `recommender/` 的 `content` / `collaborative`，并增强 `agent-ready`
+- `rag`：从 `data/final/` 与 `docs/data/` 构建轻量本地检索
+- `agent`：区分“项目问答”和“电影推荐”，可选调用 DeepSeek，没有 Key 时自动降级
+
+## RAG Data Sources
+
+本地 RAG 只读取这些现有文件：
+
+```text
+data/final/dataset_summary.json
+data/final/quality_report.json
+data/final/genre_stats.csv
+data/final/movies.csv
+docs/data/*.md
+```
+
+不会逐行索引 `ratings.csv` 或 `tags.csv`。
+
+## Environment Variables
+
+推荐在项目根目录使用 `.env`：
+
+```env
+RECOMMENDER_BASE_URL=http://127.0.0.1:8010
+DEEPSEEK_API_KEY=
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_TIMEOUT_SECONDS=30
+AGENT_USE_LLM=true
+AGENT_MAX_CONTEXT_CHARS=5000
+AGENT_MAX_RAG_RESULTS=5
+```
+
+- 后端会优先自动读取 `D:\205zd\Desktop\CS\.env`
+- 模板文件在 `D:\205zd\Desktop\CS\.env.example`
+- `DEEPSEEK_API_KEY` 留空时，自动走本地规则版 Agent
+- `AGENT_USE_LLM=false` 时，即使有 Key 也不会调用 DeepSeek
+- `RECOMMENDER_BASE_URL` 是推荐服务地址
+
+## Local Setup
+
+安装依赖：
 
 ```powershell
-E:\CodeEnv\Anaconda\python.exe -m uvicorn server.app.main:app --host 127.0.0.1 --port 8000
+py -m pip install -r server/requirements.txt
+py -m pip install -r recommender/requirements.txt
 ```
 
-当前服务只用于确认模块边界和接口入口，业务实现会在后续步骤补齐。
+先启动推荐服务：
+
+```powershell
+py -m uvicorn recommender.app.main:app --host 127.0.0.1 --port 8010
+```
+
+再启动统一后端：
+
+```powershell
+py -m uvicorn server.app.main:app --host 127.0.0.1 --port 8000
+```
+
+前端示例配置：
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+默认 CORS 放行：
+
+```text
+http://127.0.0.1:5173
+http://localhost:5173
+```
+
+## Manual Smoke Checks
+
+### RAG
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/rag/search -ContentType 'application/json' -Body '{"query":"Toy Story","topK":3}'
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/rag/search -ContentType 'application/json' -Body '{"query":"dataset rating count","topK":3}'
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/rag/search -ContentType 'application/json' -Body '{"query":"high rated sci-fi","topK":3}'
+```
+
+### Agent Project QA
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/agent/chat -ContentType 'application/json' -Body '{"message":"这个数据集有多少电影和评分？"}'
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/agent/chat -ContentType 'application/json' -Body '{"message":"MovieLens 和 IMDb 在这个项目里分别提供了什么？"}'
+```
+
+### Agent Recommendation
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/agent/recommend -ContentType 'application/json' -Body '{"message":"推荐几部高分科幻片，不要恐怖片","topK":6}'
+```
+
+### Frontend-Compatible Recommendation API
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/recommendations -ContentType 'application/json' -Body '{"mode":"agent-ready","prompt":"推荐几部高分科幻片，不要恐怖片","seedMovieName":"","userId":"","topK":6}'
+```
+
+## Notes
+
+- `recommender/artifacts/` 需要存在
+- 当前 RAG 是轻量内存版，不依赖 FAISS、Chroma、LangChain 或外部 embedding 服务
+- DeepSeek 只负责组织答案和解释，不负责决定电影 ID、电影标题、评分或统计结果
