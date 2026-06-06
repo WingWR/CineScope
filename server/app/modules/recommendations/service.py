@@ -1,73 +1,25 @@
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass, field
-from typing import Literal
+from dataclasses import replace
+from typing import Iterable
 
 from fastapi import HTTPException
 
+from server.app.core.config import get_config
+from server.app.modules.agent.llm_client import DeepSeekClient, DeepSeekError, DeepSeekUnavailableError
+from server.app.modules.agent.planner import AgentPlan, AgentPlanner
+from server.app.modules.agent.prompts import build_recommendation_messages
 from server.app.modules.movies.schemas import Movie
 from server.app.modules.movies.service import MovieService
+from server.app.modules.rag.schemas import RagSearchRequest, RagSearchResult
+from server.app.modules.rag.service import RagService
 from server.app.modules.recommendations.mappers import recommender_item_to_schema
 from server.app.modules.recommendations.recommender_client import RecommenderClient
 from server.app.modules.recommendations.schemas import RecommendationItem, RecommendationRequest, RecommendationResponse
 from server.app.shared.text_utils import normalize_text
 
 
-Strategy = Literal["content", "collaborative", "local"]
-
-GENRE_ALIASES = {
-    "Action": ["action", "动作"],
-    "Adventure": ["adventure", "冒险"],
-    "Animation": ["animation", "animated", "动画"],
-    "Children": ["children", "kids", "儿童"],
-    "Comedy": ["comedy", "喜剧", "搞笑"],
-    "Crime": ["crime", "犯罪"],
-    "Documentary": ["documentary", "纪录片"],
-    "Drama": ["drama", "剧情", "文艺"],
-    "Fantasy": ["fantasy", "奇幻", "魔幻"],
-    "Film-Noir": ["film-noir", "noir", "黑色电影"],
-    "Horror": ["horror", "恐怖", "惊悚恐怖"],
-    "IMAX": ["imax"],
-    "Musical": ["musical", "音乐剧", "歌舞"],
-    "Mystery": ["mystery", "悬疑"],
-    "Romance": ["romance", "爱情", "浪漫"],
-    "Sci-Fi": ["sci-fi", "science fiction", "科幻", "科幻片"],
-    "Thriller": ["thriller", "惊悚"],
-    "War": ["war", "战争"],
-    "Western": ["western", "西部"],
-}
-NEGATION_PREFIXES = ["not ", "without ", "no ", "不要", "别", "不想看", "排除"]
-LANGUAGE_ALIASES = {
-    "en": ["english", "英文", "英语"],
-    "zh": ["chinese", "mandarin", "中文", "汉语", "国语"],
-    "ja": ["japanese", "日语", "日本"],
-    "ko": ["korean", "韩语", "韩国"],
-    "fr": ["french", "法语", "法国"],
-}
-PERSONALIZATION_KEYWORDS = [
-    "personal",
-    "personalized",
-    "user",
-    "profile",
-    "history",
-    "个性化",
-    "用户",
-    "按我",
-    "给我推荐",
-]
-
-
-@dataclass(frozen=True)
-class AgentPlan:
-    strategy: Strategy
-    explanation: str
-    seed_movie_name: str = ""
-    user_id: int | None = None
-    genres: list[str] = field(default_factory=list)
-    excluded_genres: list[str] = field(default_factory=list)
-    language: str | None = None
-    min_rating: float | None = None
+MAX_REASON_CHARS = 300
 
 
 class RecommendationService:
@@ -75,19 +27,24 @@ class RecommendationService:
         self,
         recommender_client: RecommenderClient | None = None,
         movie_service: MovieService | None = None,
+        planner: AgentPlanner | None = None,
+        rag_service: RagService | None = None,
+        llm_client: DeepSeekClient | None = None,
     ) -> None:
+        self.config = get_config()
         self.recommender_client = recommender_client or RecommenderClient()
         self.movie_service = movie_service or MovieService()
+        self.planner = planner or AgentPlanner()
+        self.rag_service = rag_service or RagService()
+        self.llm_client = llm_client or DeepSeekClient(self.config)
 
     def recommend(self, request: RecommendationRequest) -> RecommendationResponse:
         if request.mode == "content":
-            items = self._recommend_content(request.seedMovieName, request.topK)
-            return RecommendationResponse(items=items)
+            return RecommendationResponse(items=self._recommend_content(request.seedMovieName, request.topK))
 
         if request.mode == "collaborative":
             user_id = self._parse_user_id(request.userId)
-            items = self._recommend_collaborative(user_id, request.seedMovieName, request.topK)
-            return RecommendationResponse(items=items)
+            return RecommendationResponse(items=self._recommend_collaborative(user_id, request.seedMovieName, request.topK))
 
         return self._recommend_agent_ready(request)
 
@@ -113,9 +70,16 @@ class RecommendationService:
         ]
 
     def _recommend_agent_ready(self, request: RecommendationRequest) -> RecommendationResponse:
-        plan = self._plan_agent_request(request)
-        items: list[RecommendationItem] = []
+        plan = self.planner.plan(
+            request.prompt,
+            seed_movie_name=request.seedMovieName,
+            user_id=request.userId,
+            top_k=request.topK,
+            default_intent="recommendation",
+        )
+        plan = self._normalize_plan_for_recommendation(plan)
 
+        items: list[RecommendationItem] = []
         if plan.strategy == "content":
             try:
                 items = self._recommend_content(plan.seed_movie_name, request.topK)
@@ -131,23 +95,40 @@ class RecommendationService:
 
         items = self._apply_agent_filters(items, plan)
         if len(items) < request.topK:
-            supplement = self._build_local_recommendations(
-                plan,
-                top_k=request.topK - len(items),
-                excluded_ids={str(item.movie.id) for item in items},
+            items.extend(
+                self._build_local_recommendations(
+                    plan,
+                    top_k=request.topK - len(items),
+                    excluded_ids={str(item.movie.id) for item in items},
+                )
             )
-            items.extend(supplement)
 
-        agent_items = [
+        deduped_items = self._dedupe_items(items)[: request.topK]
+        rag_results = self._safe_rag_search(self._build_rag_query(request.prompt, plan), top_k=3)
+        rag_summary = self._build_rag_summary(rag_results)
+        llm_summary = self._build_llm_summary(request.prompt, plan, deduped_items, rag_results)
+
+        final_items = [
             item.model_copy(
                 update={
-                    "reason": self._build_agent_reason(item, plan),
+                    "reason": self._compose_reason(item, plan, rag_summary, llm_summary),
                     "source": "agent-ready",
                 }
             )
-            for item in self._dedupe_items(items)[: request.topK]
+            for item in deduped_items
         ]
-        return RecommendationResponse(items=agent_items)
+        return RecommendationResponse(items=final_items)
+
+    @staticmethod
+    def _normalize_plan_for_recommendation(plan: AgentPlan) -> AgentPlan:
+        if plan.intent == "project_qa":
+            return replace(
+                plan,
+                intent="recommendation",
+                strategy="local",
+                explanation="检测到你的输入更像项目问答，因此回退到本地高质量电影推荐。",
+            )
+        return plan
 
     def _build_local_recommendations(
         self,
@@ -157,7 +138,6 @@ class RecommendationService:
     ) -> list[RecommendationItem]:
         if top_k <= 0:
             return []
-
         primary_genre = plan.genres[0] if plan.genres else None
         sort = "rating" if (plan.genres or plan.min_rating is not None) else "popularity"
         response = self.movie_service.list_movies(
@@ -188,107 +168,146 @@ class RecommendationService:
         items: list[RecommendationItem],
         plan: AgentPlan,
     ) -> list[RecommendationItem]:
-        filtered = [item for item in items if self._movie_matches_plan(item.movie, plan)]
-        return self._dedupe_items(filtered)
+        return self._dedupe_items([item for item in items if self._movie_matches_plan(item.movie, plan)])
 
-    def _plan_agent_request(self, request: RecommendationRequest) -> AgentPlan:
-        prompt = normalize_text(request.prompt)
-        lower_prompt = prompt.lower()
-        genres = [genre for genre in self._extract_genres(lower_prompt) if genre not in self._extract_excluded_genres(lower_prompt)]
-        excluded_genres = self._extract_excluded_genres(lower_prompt)
-        language = self._extract_language(lower_prompt)
-        min_rating = self._extract_min_rating(lower_prompt)
-        seed_movie_name = normalize_text(request.seedMovieName) or self._extract_seed_movie_name(prompt)
-        user_id = self._try_parse_user_id(request.userId)
-        wants_personalized = any(keyword in lower_prompt for keyword in PERSONALIZATION_KEYWORDS)
+    def _movie_matches_plan(self, movie: Movie, plan: AgentPlan) -> bool:
+        movie_genres = {genre.lower() for genre in movie.genres}
+        if plan.genres and not movie_genres.intersection({genre.lower() for genre in plan.genres}):
+            return False
+        if plan.excluded_genres and movie_genres.intersection({genre.lower() for genre in plan.excluded_genres}):
+            return False
+        if plan.language and normalize_text(movie.language).lower() != plan.language:
+            return False
+        if plan.min_rating is not None and (movie.ratingMean is None or movie.ratingMean < plan.min_rating):
+            return False
+        return True
 
-        if seed_movie_name and wants_personalized and user_id is not None:
-            return AgentPlan(
-                strategy="collaborative",
-                explanation="Matched your seed movie with collaborative preference signals.",
-                seed_movie_name=seed_movie_name,
-                user_id=user_id,
-                genres=genres,
-                excluded_genres=excluded_genres,
-                language=language,
-                min_rating=min_rating,
-            )
-        if seed_movie_name:
-            return AgentPlan(
-                strategy="content",
-                explanation="Expanded from a seed movie using similarity signals.",
-                seed_movie_name=seed_movie_name,
-                user_id=user_id,
-                genres=genres,
-                excluded_genres=excluded_genres,
-                language=language,
-                min_rating=min_rating,
-            )
-        if wants_personalized and user_id is not None:
-            return AgentPlan(
-                strategy="collaborative",
-                explanation="Built a personalized list from collaborative signals.",
-                user_id=user_id,
-                genres=genres,
-                excluded_genres=excluded_genres,
-                language=language,
-                min_rating=min_rating,
-            )
-        return AgentPlan(
-            strategy="local",
-            explanation="Ranked the catalog by the genres, language, and quality cues in your prompt.",
-            user_id=user_id,
-            genres=genres,
-            excluded_genres=excluded_genres,
-            language=language,
-            min_rating=min_rating,
+    @staticmethod
+    def _movie_rank(movie: Movie, plan: AgentPlan) -> tuple[float, float, float]:
+        wanted = {genre.lower() for genre in plan.genres}
+        current = {genre.lower() for genre in movie.genres}
+        return (
+            float(len(wanted.intersection(current))),
+            float(movie.ratingMean or 0.0),
+            float(movie.tmdbPopularity or 0.0),
         )
 
     @staticmethod
-    def _extract_seed_movie_name(prompt: str) -> str:
-        for pattern in (
-            r"《([^》]+)》",
-            r'"([^"]+)"',
-            r"'([^']+)'",
-        ):
-            match = re.search(pattern, prompt)
-            if match:
-                return normalize_text(match.group(1))
-        return ""
+    def _local_score(movie: Movie, plan: AgentPlan) -> float:
+        rating_component = (movie.ratingMean or 0.0) / 5
+        popularity_component = min((movie.tmdbPopularity or 0.0) / 100, 1.0)
+        genre_bonus = 0.05 if plan.genres and any(genre in movie.genres for genre in plan.genres) else 0.0
+        return round(min(rating_component * 0.7 + popularity_component * 0.3 + genre_bonus, 1.0), 6)
 
     @staticmethod
-    def _extract_genres(prompt: str) -> list[str]:
-        matches: list[str] = []
-        for genre, aliases in GENRE_ALIASES.items():
-            if any(alias in prompt for alias in aliases):
-                matches.append(genre)
-        return matches
+    def _local_reason(movie: Movie, plan: AgentPlan) -> str:
+        parts = [plan.explanation]
+        if movie.ratingMean is not None:
+            parts.append(f"本地目录评分 {movie.ratingMean:.1f}。")
+        if plan.genres:
+            matched = [genre for genre in movie.genres if genre.lower() in {value.lower() for value in plan.genres}]
+            if matched:
+                parts.append(f"类型匹配：{', '.join(matched[:3])}。")
+        return " ".join(parts)
+
+    def _compose_reason(
+        self,
+        item: RecommendationItem,
+        plan: AgentPlan,
+        rag_summary: str,
+        llm_summary: str,
+    ) -> str:
+        details: list[str] = [plan.explanation]
+        matched = [genre for genre in item.movie.genres if genre.lower() in {value.lower() for value in plan.genres}]
+        if matched:
+            details.append(f"匹配类型：{', '.join(matched[:3])}。")
+        if plan.language and normalize_text(item.movie.language).lower() == plan.language:
+            details.append(f"语言匹配：{plan.language}。")
+        if plan.min_rating is not None and item.movie.ratingMean is not None:
+            details.append(f"评分 {item.movie.ratingMean:.1f} 满足你的要求。")
+        if item.reason:
+            details.append(item.reason)
+        if llm_summary:
+            details.append(llm_summary)
+        elif rag_summary:
+            details.append(rag_summary)
+        return self._trim_reason(" ".join(detail.strip() for detail in details if detail.strip()))
+
+    def _build_rag_query(self, prompt: str, plan: AgentPlan) -> str:
+        parts: list[str] = [normalize_text(prompt)]
+        if plan.seed_movie_name:
+            parts.append(plan.seed_movie_name)
+        parts.extend(plan.genres)
+        if plan.min_rating is not None:
+            parts.append("高分")
+        if plan.excluded_genres:
+            parts.extend(f"不要{genre}" for genre in plan.excluded_genres)
+        return " ".join(part for part in parts if part).strip()
+
+    def _safe_rag_search(self, query: str, top_k: int) -> list[RagSearchResult]:
+        if not query:
+            return []
+        try:
+            response = self.rag_service.search(RagSearchRequest(query=query, topK=top_k))
+        except Exception:
+            return []
+        return response.items
+
+    def _build_rag_summary(self, rag_results: list[RagSearchResult]) -> str:
+        if not rag_results:
+            return ""
+        result = rag_results[0]
+        title = result.title or result.source.name
+        snippet = result.content.replace("\n", " ").strip()
+        snippet = snippet[:100].rstrip("，。；,; ")
+        if not snippet:
+            return ""
+        return self._trim_reason(f"本地资料补充：{title} 提到 {snippet}。", max_chars=120)
+
+    def _build_llm_summary(
+        self,
+        prompt: str,
+        plan: AgentPlan,
+        items: list[RecommendationItem],
+        rag_results: list[RagSearchResult],
+    ) -> str:
+        if not items or not self.llm_client.is_enabled():
+            return ""
+        rag_context = self._rag_context_text(rag_results)
+        try:
+            return self._trim_reason(
+                self.llm_client.chat_sync(
+                    build_recommendation_messages(
+                        user_prompt=prompt or "请给出电影推荐",
+                        plan=plan,
+                        rag_context=rag_context,
+                        items=items,
+                    ),
+                    temperature=0.2,
+                )
+            )
+        except (DeepSeekUnavailableError, DeepSeekError):
+            return ""
+
+    def _rag_context_text(self, rag_results: list[RagSearchResult]) -> str:
+        parts: list[str] = []
+        remaining = self.config.agent_max_context_chars
+        for result in rag_results[: self.config.agent_max_rag_results]:
+            chunk = f"[{result.title or result.source.name}] {result.content}"
+            if len(chunk) > remaining:
+                chunk = chunk[:remaining]
+            parts.append(chunk)
+            remaining -= len(chunk)
+            if remaining <= 0:
+                break
+        return "\n".join(parts)
 
     @staticmethod
-    def _extract_excluded_genres(prompt: str) -> list[str]:
-        excluded: list[str] = []
-        for genre, aliases in GENRE_ALIASES.items():
-            for alias in aliases:
-                if any(f"{prefix}{alias}" in prompt for prefix in NEGATION_PREFIXES):
-                    excluded.append(genre)
-                    break
-        return excluded
-
-    @staticmethod
-    def _extract_language(prompt: str) -> str | None:
-        for code, aliases in LANGUAGE_ALIASES.items():
-            if any(alias in prompt for alias in aliases):
-                return code
-        return None
-
-    @staticmethod
-    def _extract_min_rating(prompt: str) -> float | None:
-        match = re.search(r"([0-5](?:\.\d)?)\s*(?:分|rating|rated)", prompt)
-        if match:
-            return float(match.group(1))
-        if "high rating" in prompt or "高分" in prompt or "评分高" in prompt:
-            return 4.0
-        return None
+    def _trim_reason(reason: str, max_chars: int = MAX_REASON_CHARS) -> str:
+        text = normalize_text(reason)
+        if len(text) <= max_chars:
+            return text
+        return text[: max_chars - 3].rstrip() + "..."
 
     @staticmethod
     def _parse_user_id(user_id: str) -> int:
@@ -300,77 +319,8 @@ class RecommendationService:
             raise HTTPException(status_code=400, detail="userId must be a positive integer.")
         return parsed
 
-    @classmethod
-    def _try_parse_user_id(cls, user_id: str) -> int | None:
-        try:
-            return cls._parse_user_id(user_id)
-        except HTTPException:
-            return None
-
-    def _movie_matches_plan(self, movie: Movie, plan: AgentPlan) -> bool:
-        movie_genres = {genre.lower() for genre in movie.genres}
-        if plan.genres:
-            wanted = {genre.lower() for genre in plan.genres}
-            if not movie_genres.intersection(wanted):
-                return False
-        if plan.excluded_genres:
-            excluded = {genre.lower() for genre in plan.excluded_genres}
-            if movie_genres.intersection(excluded):
-                return False
-        if plan.language and normalize_text(movie.language).lower() != plan.language:
-            return False
-        if plan.min_rating is not None and (movie.ratingMean is None or movie.ratingMean < plan.min_rating):
-            return False
-        return True
-
-    def _movie_rank(self, movie: Movie, plan: AgentPlan) -> tuple[float, float, float]:
-        return (
-            float(self._genre_overlap(movie, plan.genres)),
-            float(movie.ratingMean or 0.0),
-            float(movie.tmdbPopularity or 0.0),
-        )
-
     @staticmethod
-    def _genre_overlap(movie: Movie, genres: list[str]) -> int:
-        wanted = {genre.lower() for genre in genres}
-        current = {genre.lower() for genre in movie.genres}
-        return len(wanted.intersection(current))
-
-    def _build_agent_reason(self, item: RecommendationItem, plan: AgentPlan) -> str:
-        details: list[str] = []
-        if plan.explanation:
-            details.append(plan.explanation)
-        if plan.genres:
-            matched = [genre for genre in item.movie.genres if genre.lower() in {value.lower() for value in plan.genres}]
-            if matched:
-                details.append(f"Matched genres: {', '.join(matched[:3])}.")
-        if plan.language and normalize_text(item.movie.language).lower() == plan.language:
-            details.append(f"Language matched: {plan.language}.")
-        if plan.min_rating is not None and item.movie.ratingMean is not None:
-            details.append(f"Rating {item.movie.ratingMean:.1f} meets your threshold.")
-        if item.reason and item.reason not in details:
-            details.append(item.reason)
-        return " ".join(details[:4]).strip()
-
-    def _local_reason(self, movie: Movie, plan: AgentPlan) -> str:
-        parts = [plan.explanation]
-        if movie.ratingMean is not None:
-            parts.append(f"Catalog rating: {movie.ratingMean:.1f}.")
-        if plan.genres:
-            matched = [genre for genre in movie.genres if genre.lower() in {value.lower() for value in plan.genres}]
-            if matched:
-                parts.append(f"Genres: {', '.join(matched[:3])}.")
-        return " ".join(part for part in parts if part).strip()
-
-    @staticmethod
-    def _local_score(movie: Movie, plan: AgentPlan) -> float:
-        rating_component = (movie.ratingMean or 0.0) / 5
-        popularity_component = min((movie.tmdbPopularity or 0.0) / 100, 1.0)
-        genre_bonus = 0.05 if plan.genres and any(genre in movie.genres for genre in plan.genres) else 0.0
-        return round(min(rating_component * 0.7 + popularity_component * 0.3 + genre_bonus, 1.0), 6)
-
-    @staticmethod
-    def _dedupe_items(items: list[RecommendationItem]) -> list[RecommendationItem]:
+    def _dedupe_items(items: Iterable[RecommendationItem]) -> list[RecommendationItem]:
         deduped: list[RecommendationItem] = []
         seen: set[str] = set()
         for item in items:
