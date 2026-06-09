@@ -25,6 +25,8 @@ export type MovieFilters = {
   language?: string;
   minRating?: number;
   sort?: MovieSort;
+  page?: number;
+  pageSize?: number;
 };
 
 export type RecommendationMode = "content" | "collaborative" | "agent-ready";
