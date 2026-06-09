@@ -31,4 +31,4 @@ class MovieListResponse(BaseModel):
     items: list[Movie] = Field(default_factory=list)
     total: int = 0
     page: int = 1
-    pageSize: int = 24
+    pageSize: int = 25

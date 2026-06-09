@@ -11,7 +11,7 @@ from ...modules.movies.schemas import Movie, MovieListResponse, MovieSort
 from ...shared.text_utils import normalize_text
 
 
-DEFAULT_MOVIE_PAGE_SIZE = 24
+DEFAULT_MOVIE_PAGE_SIZE = 25
 MAX_MOVIE_PAGE_SIZE = 60
 
 LANGUAGE_ALIASES: dict[str, set[str]] = {

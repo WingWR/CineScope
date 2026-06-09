@@ -17,7 +17,7 @@ def list_movies(
     minRating: float | None = Query(None, ge=0, le=5),
     sort: MovieSort | None = Query(None),
     page: int = Query(1, ge=1),
-    pageSize: int = Query(24, ge=1, le=60),
+    pageSize: int = Query(25, ge=1, le=60),
     service: MovieService = Depends(get_movie_service),
 ) -> MovieListResponse:
     return service.list_movies(

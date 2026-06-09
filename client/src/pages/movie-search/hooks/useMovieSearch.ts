@@ -15,7 +15,7 @@ type MovieSearchState = {
 export function useMovieSearch(filters: MovieFilters) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [page, setPage] = useState(filters.page ?? 1);
-  const [pageSize, setPageSize] = useState(filters.pageSize ?? 24);
+  const [pageSize, setPageSize] = useState(filters.pageSize ?? 25);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

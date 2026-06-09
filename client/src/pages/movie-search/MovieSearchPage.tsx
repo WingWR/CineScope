@@ -27,7 +27,7 @@ const sortOptions: Array<{ label: string; value: MovieSort }> = [
 const searchScreenBackdropClass =
   "before:fixed before:inset-[74px_0_0] before:z-[-2] before:bg-[radial-gradient(circle_at_76%_18%,rgba(85,214,194,0.13),transparent_28%),linear-gradient(90deg,rgba(14,13,11,0.96),rgba(25,20,14,0.78),rgba(14,13,11,0.98))] before:bg-cover before:bg-center before:opacity-[0.74] before:saturate-[0.85] before:content-[''] after:pointer-events-none after:fixed after:inset-[74px_0_0] after:z-[-1] after:bg-[linear-gradient(180deg,transparent,rgba(14,13,11,0.72)_42%,rgba(14,13,11,1)_92%),repeating-linear-gradient(90deg,rgba(255,255,255,0.03)_0_1px,transparent_1px_52px)] after:content-['']";
 
-const MOVIE_PAGE_SIZE = 24;
+const MOVIE_PAGE_SIZE = 25;
 
 type MovieSearchPageProps = {
   onRecommend: () => void;
