@@ -4,10 +4,10 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from server.app.modules.movies.repository import MovieRepository
-from server.app.modules.movies.mappers import movie_record_to_schema
-from server.app.modules.movies.schemas import Movie, MovieListResponse, MovieSort
-from server.app.shared.text_utils import normalize_text
+from ...modules.movies.repository import MovieRepository
+from ...modules.movies.mappers import movie_record_to_schema
+from ...modules.movies.schemas import Movie, MovieListResponse, MovieSort
+from ...shared.text_utils import normalize_text
 
 
 DEFAULT_MOVIE_LIMIT = 60

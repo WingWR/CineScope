@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from server.app.modules.rag.models import RagDocument, ScoredRagDocument
-from server.app.shared.text_utils import normalize_text
+from ...modules.rag.models import RagDocument, ScoredRagDocument
+from ...shared.text_utils import normalize_text
 
 
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+|[\u4e00-\u9fff]+", re.IGNORECASE)

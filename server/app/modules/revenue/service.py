@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from server.app.core.errors import not_implemented
-from server.app.modules.revenue.schemas import RevenuePredictionRequest, RevenuePredictionResponse
+from ...core.errors import not_implemented
+from ...modules.revenue.schemas import RevenuePredictionRequest, RevenuePredictionResponse
 
 
 class RevenueService:

@@ -4,8 +4,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-from server.app.modules.agent.schemas import AgentIntent
-from server.app.shared.text_utils import normalize_text
+from ...modules.agent.schemas import AgentIntent
+from ...shared.text_utils import normalize_text
 
 
 RecommendationStrategy = Literal["content", "collaborative", "local", "qa"]

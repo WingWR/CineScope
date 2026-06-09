@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
-from server.app.core.paths import PROJECT_ROOT, SERVER_DIR
+from ..core.paths import PROJECT_ROOT, SERVER_DIR
 
 try:
     from dotenv import load_dotenv

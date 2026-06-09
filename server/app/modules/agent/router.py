@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from server.app.modules.agent.schemas import (
+from ...modules.agent.schemas import (
     AgentChatRequest,
     AgentChatResponse,
     AgentRecommendationRequest,
     AgentRecommendationResponse,
 )
-from server.app.modules.agent.service import AgentService, get_agent_service
+from ...modules.agent.service import AgentService, get_agent_service
 
 
 router = APIRouter(prefix="/agent", tags=["agent"])

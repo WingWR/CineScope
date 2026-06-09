@@ -4,8 +4,8 @@ from typing import Any
 
 import pandas as pd
 
-from server.app.modules.movies.schemas import Movie
-from server.app.shared.text_utils import normalize_text, parse_json_list
+from ...modules.movies.schemas import Movie
+from ...shared.text_utils import normalize_text, parse_json_list
 
 
 def movie_record_to_schema(record: dict[str, Any]) -> Movie:

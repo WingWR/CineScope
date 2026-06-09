@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from server.app.modules.movies.schemas import Movie
+from ...modules.movies.schemas import Movie
 
 
 RecommendationMode = Literal["content", "collaborative", "agent-ready"]

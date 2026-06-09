@@ -4,10 +4,10 @@ from typing import Any
 
 import pandas as pd
 
-from server.app.core.paths import DATASET_SUMMARY_FILE, GENRE_STATS_FILE, MOVIES_FILE
-from server.app.shared.cache import cached
-from server.app.shared.csv_loader import load_csv
-from server.app.shared.json_loader import load_json
+from ...core.paths import DATASET_SUMMARY_FILE, GENRE_STATS_FILE, MOVIES_FILE
+from ...shared.cache import cached
+from ...shared.csv_loader import load_csv
+from ...shared.json_loader import load_json
 
 
 class StatsRepository:

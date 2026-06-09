@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from server.app.modules.recommendations.schemas import RecommendationRequest, RecommendationResponse
-from server.app.modules.recommendations.service import RecommendationService, get_recommendation_service
+from ...modules.recommendations.schemas import RecommendationRequest, RecommendationResponse
+from ...modules.recommendations.service import RecommendationService, get_recommendation_service
 
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])

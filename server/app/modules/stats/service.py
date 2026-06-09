@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from server.app.modules.stats.repository import StatsRepository
-from server.app.modules.stats.schemas import (
+from ...modules.stats.repository import StatsRepository
+from ...modules.stats.schemas import (
     AtlasSummary,
     BudgetTrendPoint,
     CorrelationCell,

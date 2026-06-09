@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from server.app.modules.rag.retriever import RagRetriever
+from ...modules.rag.retriever import RagRetriever
 
 
 class RagIndexer:

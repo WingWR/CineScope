@@ -5,18 +5,18 @@ from typing import Iterable
 
 from fastapi import HTTPException
 
-from server.app.core.config import get_config
-from server.app.modules.agent.llm_client import DeepSeekClient, DeepSeekError, DeepSeekUnavailableError
-from server.app.modules.agent.planner import AgentPlan, AgentPlanner
-from server.app.modules.agent.prompts import build_recommendation_messages
-from server.app.modules.movies.schemas import Movie
-from server.app.modules.movies.service import MovieService
-from server.app.modules.rag.schemas import RagSearchRequest, RagSearchResult
-from server.app.modules.rag.service import RagService
-from server.app.modules.recommendations.mappers import recommender_item_to_schema
-from server.app.modules.recommendations.recommender_client import RecommenderClient
-from server.app.modules.recommendations.schemas import RecommendationItem, RecommendationRequest, RecommendationResponse
-from server.app.shared.text_utils import normalize_text
+from ...core.config import get_config
+from ...modules.agent.llm_client import DeepSeekClient, DeepSeekError, DeepSeekUnavailableError
+from ...modules.agent.planner import AgentPlan, AgentPlanner
+from ...modules.agent.prompts import build_recommendation_messages
+from ...modules.movies.schemas import Movie
+from ...modules.movies.service import MovieService
+from ...modules.rag.schemas import RagSearchRequest, RagSearchResult
+from ...modules.rag.service import RagService
+from ...modules.recommendations.mappers import recommender_item_to_schema
+from ...modules.recommendations.recommender_client import RecommenderClient
+from ...modules.recommendations.schemas import RecommendationItem, RecommendationRequest, RecommendationResponse
+from ...shared.text_utils import normalize_text
 
 
 MAX_REASON_CHARS = 300

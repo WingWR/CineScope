@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from server.app.modules.movies.schemas import Movie, MovieListResponse, MovieSort
-from server.app.modules.movies.service import MovieService, get_movie_service
+from ...modules.movies.schemas import Movie, MovieListResponse, MovieSort
+from ...modules.movies.service import MovieService, get_movie_service
 
 
 router = APIRouter(prefix="/movies", tags=["movies"])

@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from server.app.core.config import get_config
-from server.app.modules.agent.llm_client import DeepSeekClient, DeepSeekError, DeepSeekUnavailableError
-from server.app.modules.agent.planner import AgentPlan, AgentPlanner
-from server.app.modules.agent.prompts import build_project_qa_messages, build_recommendation_messages
-from server.app.modules.agent.schemas import (
+from ...core.config import get_config
+from ...modules.agent.llm_client import DeepSeekClient, DeepSeekError, DeepSeekUnavailableError
+from ...modules.agent.planner import AgentPlan, AgentPlanner
+from ...modules.agent.prompts import build_project_qa_messages, build_recommendation_messages
+from ...modules.agent.schemas import (
     AgentChatRequest,
     AgentChatResponse,
     AgentRecommendationRequest,
     AgentRecommendationResponse,
     AgentTraceStep,
 )
-from server.app.modules.agent.tools import AgentTools
-from server.app.modules.rag.schemas import RagSearchResult
-from server.app.modules.recommendations.schemas import RecommendationRequest
-from server.app.shared.text_utils import normalize_text
+from ...modules.agent.tools import AgentTools
+from ...modules.rag.schemas import RagSearchResult
+from ...modules.recommendations.schemas import RecommendationRequest
+from ...shared.text_utils import normalize_text
 
 
 PROJECT_QA_PRIORITY_SOURCES = {

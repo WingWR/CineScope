@@ -4,11 +4,11 @@ from typing import Any
 
 import pandas as pd
 
-from server.app.modules.movies.mappers import movie_record_to_schema
-from server.app.modules.movies.repository import MovieRepository
-from server.app.modules.movies.schemas import Movie
-from server.app.modules.recommendations.schemas import RecommendationItem
-from server.app.shared.text_utils import normalize_text
+from ...modules.movies.mappers import movie_record_to_schema
+from ...modules.movies.repository import MovieRepository
+from ...modules.movies.schemas import Movie
+from ...modules.recommendations.schemas import RecommendationItem
+from ...shared.text_utils import normalize_text
 
 
 _MOVIE_REPOSITORY = MovieRepository()
