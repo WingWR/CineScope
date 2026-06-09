@@ -4,22 +4,22 @@ import type { ApiClient } from "../../../shared/api/client";
 import type { MovieListResponse } from "./movieSearchContracts";
 
 export type MovieSearchApi = {
-  listMovies(filters: MovieFilters): Promise<Movie[]>;
+  listMovies(filters: MovieFilters): Promise<MovieListResponse>;
   getMovie(movieId: Movie["id"]): Promise<Movie>;
 };
 
 export function createMovieSearchApi(apiClient: ApiClient): MovieSearchApi {
   return {
-    async listMovies(filters: MovieFilters): Promise<Movie[]> {
-      const response = await apiClient.get<MovieListResponse>("/movies", {
+    listMovies(filters: MovieFilters): Promise<MovieListResponse> {
+      return apiClient.get<MovieListResponse>("/movies", {
         search: filters.search,
         genre: filters.genre,
         language: filters.language,
         minRating: filters.minRating,
         sort: filters.sort,
+        page: filters.page,
+        pageSize: filters.pageSize,
       });
-
-      return response.items;
     },
 
     getMovie(movieId: Movie["id"]): Promise<Movie> {
