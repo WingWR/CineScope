@@ -1,20 +1,22 @@
 from __future__ import annotations
 
-from server.app.core.config import get_config
-from server.app.modules.agent.llm_client import DeepSeekClient, DeepSeekError, DeepSeekUnavailableError
-from server.app.modules.agent.planner import AgentPlan, AgentPlanner
-from server.app.modules.agent.prompts import build_project_qa_messages, build_recommendation_messages
-from server.app.modules.agent.schemas import (
+from fastapi import HTTPException
+
+from ...core.config import get_config
+from ...modules.agent.llm_client import DeepSeekClient, DeepSeekError, DeepSeekUnavailableError
+from ...modules.agent.planner import AgentPlan, AgentPlanner
+from ...modules.agent.prompts import build_project_qa_messages, build_recommendation_messages
+from ...modules.agent.schemas import (
     AgentChatRequest,
     AgentChatResponse,
     AgentRecommendationRequest,
     AgentRecommendationResponse,
     AgentTraceStep,
 )
-from server.app.modules.agent.tools import AgentTools
-from server.app.modules.rag.schemas import RagSearchResult
-from server.app.modules.recommendations.schemas import RecommendationRequest
-from server.app.shared.text_utils import normalize_text
+from ...modules.agent.tools import AgentTools
+from ...modules.rag.schemas import RagSearchResult
+from ...modules.recommendations.schemas import RecommendationRequest
+from ...shared.text_utils import normalize_text
 
 
 PROJECT_QA_PRIORITY_SOURCES = {
@@ -133,21 +135,25 @@ class AgentService:
         message: str,
         rag_results: list[RagSearchResult],
     ) -> tuple[str, bool]:
+        if not self.llm_client.is_enabled():
+            raise HTTPException(
+                status_code=503,
+                detail="DeepSeek API is not configured or is disabled. Agent chat requires DeepSeek.",
+            )
         if not rag_results:
             return "当前没有检索到足够的本地项目资料来回答这个问题。", False
 
         rag_context = self._rag_context_text(rag_results)
-        if self.llm_client.is_enabled():
-            try:
-                answer = await self.llm_client.chat(
-                    build_project_qa_messages(user_message=message, rag_context=rag_context),
-                    temperature=0.2,
-                )
-                if answer:
-                    return answer, True
-            except (DeepSeekUnavailableError, DeepSeekError):
-                pass
-        return self._fallback_project_answer(rag_results), False
+        try:
+            answer = await self.llm_client.chat(
+                build_project_qa_messages(user_message=message, rag_context=rag_context),
+                temperature=0.2,
+            )
+        except (DeepSeekUnavailableError, DeepSeekError) as exc:
+            raise HTTPException(status_code=503, detail=f"DeepSeek API unavailable: {exc}") from exc
+        if not answer:
+            raise HTTPException(status_code=502, detail="DeepSeek API returned an empty answer.")
+        return answer, True
 
     async def _answer_recommendation(
         self,
@@ -156,45 +162,30 @@ class AgentService:
         items,
         rag_results: list[RagSearchResult],
     ) -> tuple[str, bool]:
+        if not self.llm_client.is_enabled():
+            raise HTTPException(
+                status_code=503,
+                detail="DeepSeek API is not configured or is disabled. Agent recommendations require DeepSeek.",
+            )
         if not items:
             return "当前没有找到满足这些条件的本地推荐结果。", False
 
         rag_context = self._rag_context_text(rag_results)
-        if self.llm_client.is_enabled():
-            try:
-                answer = await self.llm_client.chat(
-                    build_recommendation_messages(
-                        user_prompt=prompt or "Please recommend some movies.",
-                        plan=plan,
-                        rag_context=rag_context,
-                        items=items,
-                    ),
-                    temperature=0.2,
-                )
-                if answer:
-                    return answer, True
-            except (DeepSeekUnavailableError, DeepSeekError):
-                pass
-        return self._fallback_recommendation_answer(plan, items, rag_results), False
-
-    def _fallback_project_answer(self, rag_results: list[RagSearchResult]) -> str:
-        parts = ["根据本地项目资料检索结果："]
-        for result in rag_results[:3]:
-            headline = result.title or result.source.name
-            snippet = result.content.replace("\n", " ").strip()[:120]
-            parts.append(f"{headline} 提到：{snippet}")
-        return " ".join(parts)
-
-    def _fallback_recommendation_answer(self, plan: AgentPlan, items, rag_results: list[RagSearchResult]) -> str:
-        titles = "、".join(item.movie.title for item in items[:3])
-        parts = [f"我已经按你的条件生成本地推荐，优先结果包括：{titles}。"]
-        if plan.genres:
-            parts.append(f"重点匹配类型：{', '.join(plan.genres)}。")
-        if plan.excluded_genres:
-            parts.append(f"已排除类型：{', '.join(plan.excluded_genres)}。")
-        if rag_results:
-            parts.append(f"参考了本地资料：{rag_results[0].title or rag_results[0].source.name}。")
-        return " ".join(parts)
+        try:
+            answer = await self.llm_client.chat(
+                build_recommendation_messages(
+                    user_prompt=prompt or "Please recommend some movies.",
+                    plan=plan,
+                    rag_context=rag_context,
+                    items=items,
+                ),
+                temperature=0.2,
+            )
+        except (DeepSeekUnavailableError, DeepSeekError) as exc:
+            raise HTTPException(status_code=503, detail=f"DeepSeek API unavailable: {exc}") from exc
+        if not answer:
+            raise HTTPException(status_code=502, detail="DeepSeek API returned an empty answer.")
+        return answer, True
 
     def _build_rag_query(self, prompt: str, plan: AgentPlan) -> str:
         if plan.intent == "project_qa":

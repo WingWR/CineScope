@@ -5,8 +5,8 @@ from typing import Any
 import httpx
 from fastapi import HTTPException
 
-from server.app.core.config import get_config
-from server.app.shared.text_utils import normalize_text
+from ...core.config import get_config
+from ...shared.text_utils import normalize_text
 
 
 REQUEST_TIMEOUT_SECONDS = 8.0

@@ -4,7 +4,7 @@ import asyncio
 
 import httpx
 
-from server.app.core.config import AppConfig, get_config
+from ...core.config import AppConfig, get_config
 
 
 class DeepSeekError(RuntimeError):

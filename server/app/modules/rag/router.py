@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from server.app.modules.rag.schemas import RagIndexRequest, RagIndexResponse, RagSearchRequest, RagSearchResponse, RagSource
-from server.app.modules.rag.service import RagService, get_rag_service
+from ...modules.rag.schemas import RagIndexRequest, RagIndexResponse, RagSearchRequest, RagSearchResponse, RagSource
+from ...modules.rag.service import RagService, get_rag_service
 
 
 router = APIRouter(prefix="/rag", tags=["rag"])

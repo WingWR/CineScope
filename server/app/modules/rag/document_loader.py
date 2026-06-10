@@ -4,11 +4,11 @@ from typing import Any
 
 import pandas as pd
 
-from server.app.core.paths import DATASET_SUMMARY_FILE, DOCS_DATA_DIR, GENRE_STATS_FILE, MOVIES_FILE, QUALITY_REPORT_FILE
-from server.app.modules.rag.models import RagDocument
-from server.app.shared.csv_loader import load_csv
-from server.app.shared.json_loader import load_json
-from server.app.shared.text_utils import normalize_text, parse_json_list
+from ...core.paths import DATASET_SUMMARY_FILE, DOCS_DATA_DIR, GENRE_STATS_FILE, MOVIES_FILE, QUALITY_REPORT_FILE
+from ...modules.rag.models import RagDocument
+from ...shared.csv_loader import load_csv
+from ...shared.json_loader import load_json
+from ...shared.text_utils import normalize_text, parse_json_list
 
 
 POPULARITY_PROFILE_LIMIT = 3000

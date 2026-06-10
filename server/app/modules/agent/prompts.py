@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from server.app.modules.agent.planner import AgentPlan
-from server.app.modules.recommendations.schemas import RecommendationItem
+from ...modules.agent.planner import AgentPlan
+from ...modules.recommendations.schemas import RecommendationItem
 
 
 RECOMMENDATION_SYSTEM_PROMPT = """

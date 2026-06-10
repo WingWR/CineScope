@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from server.app.modules.rag.retriever import RagRetriever
-from server.app.modules.rag.schemas import RagIndexRequest, RagIndexResponse, RagSearchRequest, RagSearchResponse, RagSource
-from server.app.shared.cache import cached
+from ...modules.rag.retriever import RagRetriever
+from ...modules.rag.schemas import RagIndexRequest, RagIndexResponse, RagSearchRequest, RagSearchResponse, RagSource
+from ...shared.cache import cached
 
 
 class RagService:

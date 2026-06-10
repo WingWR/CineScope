@@ -7,17 +7,18 @@ import { cx, panelClass, primaryActionClass } from "../../../shared/ui/classes";
 
 type MovieDetailPanelProps = {
   movie?: Movie;
-  onRecommend: () => void;
+  onRecommend?: (movie: Movie) => void;
+  showEmptyActionHint?: boolean;
 };
 
-export function MovieDetailPanel({ movie, onRecommend }: MovieDetailPanelProps) {
+export function MovieDetailPanel({ movie, onRecommend, showEmptyActionHint = true }: MovieDetailPanelProps) {
   if (!movie) {
     return (
       <aside className={cx(panelClass, "sticky top-24 overflow-hidden p-[18px] max-[1180px]:static max-[1180px]:col-span-full")} aria-label="Movie details pending">
         <ConnectionNotice
           title="Waiting for movie details"
           message="After a real search result is selected, backend movie details, metrics, and recommendation actions appear here."
-          actionHint="Suggested detail fields: title/year/genres/overview/ratingMean/revenue/posterUrl/backdropUrl"
+          actionHint={showEmptyActionHint ? "Suggested detail fields: title/year/genres/overview/ratingMean/revenue/posterUrl/backdropUrl" : undefined}
         />
       </aside>
     );
@@ -77,10 +78,12 @@ export function MovieDetailPanel({ movie, onRecommend }: MovieDetailPanelProps) 
           ) : null}
         </div>
 
-        <button className={primaryActionClass} type="button" onClick={onRecommend}>
-          Recommended seed
-          <ArrowRight size={16} />
-        </button>
+        {onRecommend ? (
+          <button className={primaryActionClass} type="button" onClick={() => onRecommend(movie)}>
+            Recommended seed
+            <ArrowRight size={16} />
+          </button>
+        ) : null}
       </div>
     </aside>
   );

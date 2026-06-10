@@ -1,4 +1,4 @@
-import { ArrowUpRight, Gauge } from "lucide-react";
+import { Gauge } from "lucide-react";
 import { formatScore } from "../../../entities/movie/formatters";
 import type { RecommendationItem } from "../../../entities/movie/types";
 import { cx, panelClass } from "../../../shared/ui/classes";
@@ -6,15 +6,23 @@ import { cx, panelClass } from "../../../shared/ui/classes";
 type RecommendationCardProps = {
   item: RecommendationItem;
   index: number;
+  selected: boolean;
+  onSelect: () => void;
 };
 
-export function RecommendationCard({ item, index }: RecommendationCardProps) {
+export function RecommendationCard({ item, index, selected, onSelect }: RecommendationCardProps) {
   return (
-    <article
+    <button
       className={cx(
         panelClass,
-        "relative grid animate-card-in grid-cols-[76px_minmax(0,1fr)_auto_22px] items-center gap-3.5 p-3 transition-[border-color,transform] duration-[220ms] ease-linear hover:-translate-y-0.5 hover:border-[rgba(242,177,92,0.34)] max-[640px]:grid-cols-[64px_minmax(0,1fr)]",
+        "relative grid w-full animate-card-in grid-cols-[76px_minmax(0,1fr)_auto] items-center gap-3.5 p-3 text-left text-inherit transition-[background,border-color,box-shadow,transform] duration-[220ms] ease-linear hover:-translate-y-0.5 hover:border-[rgba(242,177,92,0.34)] max-[640px]:grid-cols-[64px_minmax(0,1fr)]",
+        selected &&
+          "border-[rgba(190,132,54,0.92)] bg-[rgba(190,132,54,0.16)] shadow-[0_0_0_1px_rgba(190,132,54,0.26),0_16px_40px_rgba(190,132,54,0.12)]",
       )}
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      data-selected={selected}
       style={{ animationDelay: `${index * 42}ms` }}
     >
       {item.movie.posterUrl ? (
@@ -38,7 +46,6 @@ export function RecommendationCard({ item, index }: RecommendationCardProps) {
         <strong className="text-[1.16rem]">{formatScore(item.score)}</strong>
         <span className="text-[0.74rem] text-cinema-muted">{item.source}</span>
       </div>
-      <ArrowUpRight className="text-cinema-muted max-[640px]:hidden" size={17} />
-    </article>
+    </button>
   );
 }

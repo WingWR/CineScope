@@ -1,16 +1,50 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from fastapi import HTTPException
 
-from server.app.modules.movies.repository import MovieRepository
-from server.app.modules.movies.mappers import movie_record_to_schema
-from server.app.modules.movies.schemas import Movie, MovieListResponse, MovieSort
-from server.app.shared.text_utils import normalize_text
+from ...modules.movies.repository import MovieRepository
+from ...modules.movies.mappers import movie_record_to_schema
+from ...modules.movies.schemas import Movie, MovieListResponse, MovieSort
+from ...shared.text_utils import normalize_text
 
 
-DEFAULT_MOVIE_LIMIT = 60
+DEFAULT_MOVIE_PAGE_SIZE = 25
+MAX_MOVIE_PAGE_SIZE = 60
+
+LANGUAGE_ALIASES: dict[str, set[str]] = {
+    "en": {"en", "eng", "english"},
+    "fr": {"fr", "fra", "fre", "french", "francais", "français"},
+    "ja": {"ja", "jpn", "jp", "japanese"},
+    "it": {"it", "ita", "italian"},
+    "ru": {"ru", "rus", "russian"},
+    "de": {"de", "deu", "ger", "german", "deutsch"},
+    "es": {"es", "spa", "spanish", "espanol", "español"},
+    "zh": {"zh", "zho", "chi", "chinese", "mandarin", "putonghua", "中文", "汉语", "普通话"},
+    "cn": {"cn", "cantonese", "yue", "粤语"},
+    "ko": {"ko", "kor", "korean"},
+    "da": {"da", "dan", "danish"},
+    "sv": {"sv", "swe", "swedish"},
+    "pt": {"pt", "por", "portuguese"},
+    "fi": {"fi", "fin", "finnish"},
+    "hi": {"hi", "hin", "hindi"},
+    "nl": {"nl", "dut", "nld", "dutch"},
+    "cs": {"cs", "ces", "cze", "czech"},
+    "fa": {"fa", "fas", "per", "persian", "farsi"},
+    "pl": {"pl", "pol", "polish"},
+    "no": {"no", "nor", "norwegian"},
+    "he": {"he", "heb", "hebrew"},
+    "th": {"th", "tha", "thai"},
+    "tr": {"tr", "tur", "turkish"},
+}
+
+LANGUAGE_LOOKUP: dict[str, set[str]] = {}
+for code, aliases in LANGUAGE_ALIASES.items():
+    LANGUAGE_LOOKUP.setdefault(code, set()).add(code)
+    for alias in aliases:
+        LANGUAGE_LOOKUP.setdefault(alias, set()).add(code)
 
 
 class MovieService:
@@ -24,8 +58,12 @@ class MovieService:
         language: str | None = None,
         min_rating: float | None = None,
         sort: MovieSort | None = None,
+        page: int = 1,
+        page_size: int = DEFAULT_MOVIE_PAGE_SIZE,
     ) -> MovieListResponse:
         records = self.repository.list_records()
+        requested_page = max(1, int(page or 1))
+        requested_page_size = min(MAX_MOVIE_PAGE_SIZE, max(1, int(page_size or DEFAULT_MOVIE_PAGE_SIZE)))
         filtered = [
             record
             for record in records
@@ -35,9 +73,16 @@ class MovieService:
             and self._matches_rating(record, min_rating)
         ]
         filtered = self._sort_records(filtered, sort or "popularity")
+        total = len(filtered)
+        max_page = max(1, (total + requested_page_size - 1) // requested_page_size)
+        current_page = min(requested_page, max_page)
+        start = (current_page - 1) * requested_page_size
+        end = start + requested_page_size
         return MovieListResponse(
-            items=[movie_record_to_schema(record) for record in filtered[:DEFAULT_MOVIE_LIMIT]],
-            total=len(filtered),
+            items=[movie_record_to_schema(record) for record in filtered[start:end]],
+            total=total,
+            page=current_page,
+            pageSize=requested_page_size,
         )
 
     def get_movie(self, movie_id: int | str) -> Movie:
@@ -62,10 +107,10 @@ class MovieService:
 
     @staticmethod
     def _matches_language(record: dict[str, Any], language: str | None) -> bool:
-        wanted = normalize_text(language).lower()
-        if not wanted:
+        wanted_codes = _language_codes(language)
+        if not wanted_codes:
             return True
-        return str(record.get("_language_norm", "")) == wanted
+        return str(record.get("_language_norm", "")).lower() in wanted_codes
 
     @staticmethod
     def _matches_rating(record: dict[str, Any], min_rating: float | None) -> bool:
@@ -130,3 +175,21 @@ class MovieService:
 
 def get_movie_service() -> MovieService:
     return MovieService()
+
+
+def _language_codes(language: str | None) -> set[str]:
+    normalized = normalize_text(language).lower()
+    if not normalized:
+        return set()
+
+    tokens = {normalized}
+    tokens.update(token for token in re.split(r"[\s,/|;:_-]+", normalized) if token)
+
+    codes: set[str] = set()
+    for token in tokens:
+        matches = LANGUAGE_LOOKUP.get(token)
+        if matches:
+            codes.update(matches)
+        elif len(token) <= 3:
+            codes.add(token)
+    return codes

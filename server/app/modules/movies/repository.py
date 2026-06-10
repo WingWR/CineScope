@@ -4,10 +4,10 @@ from typing import Any
 
 import pandas as pd
 
-from server.app.core.paths import MOVIES_FILE
-from server.app.shared.cache import cached
-from server.app.shared.csv_loader import load_csv
-from server.app.shared.text_utils import normalize_text, parse_json_list
+from ...core.paths import MOVIES_FILE
+from ...shared.cache import cached
+from ...shared.csv_loader import load_csv
+from ...shared.text_utils import normalize_text, parse_json_list
 
 
 class MovieRepository:

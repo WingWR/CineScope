@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from server.app.modules.rag.document_loader import RagDocumentLoader
-from server.app.modules.rag.models import RagDocument, ScoredRagDocument
-from server.app.modules.rag.schemas import RagSource
-from server.app.modules.rag.vector_store import InMemoryRagStore
+from ...modules.rag.document_loader import RagDocumentLoader
+from ...modules.rag.models import RagDocument, ScoredRagDocument
+from ...modules.rag.schemas import RagSource
+from ...modules.rag.vector_store import InMemoryRagStore
 
 
 class RagRetriever:

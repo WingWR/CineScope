@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from server.app.modules.movies.schemas import MovieListResponse
-from server.app.modules.movies.service import MovieService
-from server.app.modules.rag.schemas import RagSearchRequest, RagSearchResponse
-from server.app.modules.rag.service import RagService
-from server.app.modules.recommendations.schemas import RecommendationRequest, RecommendationResponse
-from server.app.modules.recommendations.service import RecommendationService
+from ...modules.movies.schemas import MovieListResponse
+from ...modules.movies.service import MovieService
+from ...modules.rag.schemas import RagSearchRequest, RagSearchResponse
+from ...modules.rag.service import RagService
+from ...modules.recommendations.schemas import RecommendationRequest, RecommendationResponse
+from ...modules.recommendations.service import RecommendationService
 
 
 class AgentTools:

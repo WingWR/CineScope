@@ -246,7 +246,7 @@ models/revenue_predictor.py → 推理入口，加载产物并提供 predict_fra
 ```powershell
 E:\CodeEnv\Anaconda\python.exe -m recommender.scripts.build_all
 E:\CodeEnv\Anaconda\python.exe -m recommender.scripts.demo
-E:\CodeEnv\Anaconda\python.exe -m uvicorn recommender.app.main:app --host 127.0.0.1 --port 8010
+E:\CodeEnv\Anaconda\python.exe -m uvicorn recommender.app.main:app --host 127.0.0.1 --port 3000
 ```
 
 ### 推荐服务接口

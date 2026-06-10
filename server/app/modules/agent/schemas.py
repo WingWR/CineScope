@@ -4,8 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from server.app.modules.rag.schemas import RagSearchResult
-from server.app.modules.recommendations.schemas import RecommendationItem
+from ...modules.rag.schemas import RagSearchResult
+from ...modules.recommendations.schemas import RecommendationItem
 
 
 AgentIntent = Literal["recommendation", "project_qa"]
