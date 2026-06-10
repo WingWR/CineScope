@@ -48,7 +48,7 @@ docs/data/*.md
 推荐在项目根目录使用 `.env`：
 
 ```env
-RECOMMENDER_BASE_URL=http://127.0.0.1:8010
+RECOMMENDER_BASE_URL=http://127.0.0.1:3000
 DEEPSEEK_API_KEY=
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
@@ -76,7 +76,7 @@ py -m pip install -r recommender/requirements.txt
 先启动推荐服务：
 
 ```powershell
-py -m uvicorn recommender.app.main:app --host 127.0.0.1 --port 8010
+py -m uvicorn recommender.app.main:app --host 127.0.0.1 --port 3000
 ```
 
 再启动统一后端：

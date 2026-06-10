@@ -45,7 +45,7 @@ E:\CodeEnv\Anaconda\python.exe -m recommender.scripts.build_all
 ## Run The Service
 
 ```powershell
-E:\CodeEnv\Anaconda\python.exe -m uvicorn recommender.app.main:app --host 127.0.0.1 --port 8010
+E:\CodeEnv\Anaconda\python.exe -m uvicorn recommender.app.main:app --host 127.0.0.1 --port 3000
 ```
 
 ## Endpoints

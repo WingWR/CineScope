@@ -1,6 +1,6 @@
 import { Bot, Film, Layers3, ListFilter, MessageSquareText, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
-import type { RecommendationMode, RecommendationRequest } from "../../entities/movie/types";
+import { useEffect, useMemo, useState } from "react";
+import type { Movie, RecommendationMode, RecommendationRequest } from "../../entities/movie/types";
 import { ConnectionNotice } from "../../shared/ui/ConnectionNotice";
 import { SectionHeader } from "../../shared/ui/SectionHeader";
 import {
@@ -12,8 +12,8 @@ import {
   screenClass,
   textInputClass,
 } from "../../shared/ui/classes";
+import { MovieDetailPanel } from "../movie-search/components/MovieDetailPanel";
 import { RecommendationCard } from "./components/RecommendationCard";
-import { RecommendationRail } from "./components/RecommendationRail";
 import { useRecommendations } from "./hooks/useRecommendations";
 
 const modes: Array<{ value: RecommendationMode; label: string; icon: typeof Film }> = [
@@ -23,13 +23,19 @@ const modes: Array<{ value: RecommendationMode; label: string; icon: typeof Film
 ];
 
 const DEFAULT_RECOMMENDATION_USER_ID = "1";
+const DEFAULT_RECOMMENDATION_TOP_K = 6;
 
-export function RecommendationPage() {
+type RecommendationPageProps = {
+  initialSeedMovie?: Movie | null;
+};
+
+export function RecommendationPage({ initialSeedMovie }: RecommendationPageProps) {
   const [mode, setMode] = useState<RecommendationMode>("agent-ready");
   const [prompt, setPrompt] = useState("");
   const [seedMovieName, setSeedMovieName] = useState("");
-  const [topK, setTopK] = useState(6);
+  const [topK, setTopK] = useState(DEFAULT_RECOMMENDATION_TOP_K);
   const [submittedRequest, setSubmittedRequest] = useState<RecommendationRequest | null>(null);
+  const [selectedMovieId, setSelectedMovieId] = useState<number | string | null>(null);
 
   const draftRequest: RecommendationRequest = useMemo(
     () => ({
@@ -44,6 +50,60 @@ export function RecommendationPage() {
 
   const { items, isLoading, errorMessage } = useRecommendations(submittedRequest);
   const isAgentMode = mode === "agent-ready";
+  const selectedMovie = items.find((item) => item.movie.id === selectedMovieId)?.movie;
+
+  useEffect(() => {
+    if (!initialSeedMovie) {
+      return;
+    }
+
+    const seedRequest: RecommendationRequest = {
+      mode: "content",
+      prompt: "",
+      seedMovieName: initialSeedMovie.title,
+      userId: DEFAULT_RECOMMENDATION_USER_ID,
+      topK: DEFAULT_RECOMMENDATION_TOP_K,
+    };
+
+    setMode("content");
+    setPrompt("");
+    setSeedMovieName(initialSeedMovie.title);
+    setTopK(DEFAULT_RECOMMENDATION_TOP_K);
+    setSubmittedRequest(seedRequest);
+    setSelectedMovieId(initialSeedMovie.id);
+  }, [initialSeedMovie?.id, initialSeedMovie?.title]);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setSelectedMovieId(null);
+      return;
+    }
+
+    if (!items.some((item) => item.movie.id === selectedMovieId)) {
+      setSelectedMovieId(items[0].movie.id);
+    }
+  }, [items, selectedMovieId]);
+
+  const requestRecommendations = (request: RecommendationRequest) => {
+    setSubmittedRequest(request);
+    setSelectedMovieId(null);
+  };
+
+  const recommendFromMovie = (movie: Movie) => {
+    const seedRequest: RecommendationRequest = {
+      mode: "content",
+      prompt: "",
+      seedMovieName: movie.title,
+      userId: DEFAULT_RECOMMENDATION_USER_ID,
+      topK,
+    };
+
+    setMode("content");
+    setPrompt("");
+    setSeedMovieName(movie.title);
+    setSubmittedRequest(seedRequest);
+    setSelectedMovieId(movie.id);
+  };
 
   return (
     <section className={screenClass}>
@@ -52,7 +112,7 @@ export function RecommendationPage() {
         description="Use a simple recommendation request. Agent mode adds one natural-language brief; other modes stay parameter based."
       />
 
-      <div className="grid grid-cols-[minmax(0,1fr)_340px] items-start gap-[18px] max-[1180px]:grid-cols-1">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(320px,400px)] items-start gap-[18px] max-[1180px]:grid-cols-1">
         <div className="grid gap-4">
           <div className={cx(panelClass, "grid gap-4 p-[18px]")}>
             <div className="grid grid-cols-3 gap-2 max-[640px]:grid-cols-1" aria-label="Recommendation mode">
@@ -61,9 +121,9 @@ export function RecommendationPage() {
                 return (
                   <button
                     className={cx(
-                      "inline-flex min-h-9 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-transparent bg-cinema-surface px-2.5 text-[0.9rem] text-cinema-soft transition-[background,color,transform] duration-[220ms] ease-linear hover:bg-[rgba(255,255,255,0.08)] hover:text-cinema-text",
+                      "inline-flex min-h-9 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-[rgba(244,239,228,0.14)] bg-cinema-surface px-2.5 text-[0.9rem] text-cinema-soft transition-[background,border-color,box-shadow,color,transform] duration-[220ms] ease-linear hover:border-[rgba(190,132,54,0.62)] hover:text-cinema-text",
                       mode === item.value &&
-                        "border-[rgba(242,177,92,0.32)] bg-[rgba(242,177,92,0.16)] text-cinema-amber-strong hover:text-cinema-amber-strong",
+                        "border-[rgba(190,132,54,0.9)] bg-[rgba(190,132,54,0.24)] text-cinema-amber-strong shadow-[0_0_0_1px_rgba(190,132,54,0.28),0_10px_26px_rgba(190,132,54,0.14)] hover:border-[rgba(190,132,54,0.9)] hover:text-cinema-amber-strong",
                     )}
                     data-selected={mode === item.value}
                     key={item.value}
@@ -120,22 +180,11 @@ export function RecommendationPage() {
             <button
               className={cx(primaryActionClass, "min-w-[220px] justify-self-end max-[640px]:w-full max-[640px]:justify-self-stretch")}
               type="button"
-              onClick={() => setSubmittedRequest(draftRequest)}
+              onClick={() => requestRecommendations(draftRequest)}
             >
               Request recommendations
               <Sparkles size={16} />
             </button>
-          </div>
-
-          <div className={cx(panelClass, "relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 overflow-hidden p-3.5 max-[640px]:grid-cols-1")}>
-            <div>
-              <span className="text-[0.78rem] font-[760] uppercase text-cinema-amber">Request summary</span>
-              <strong className="block truncate text-[1.24rem] text-cinema-text">{draftRequest.prompt || seedMovieName || "No recommendation request yet"}</strong>
-              <p className="m-0 leading-[1.55] text-cinema-soft">
-                Only real backend responses are rendered. This client does not use local candidate data.
-              </p>
-            </div>
-            <Sparkles size={20} />
           </div>
 
           <div className="grid gap-3" aria-busy={isLoading}>
@@ -167,18 +216,18 @@ export function RecommendationPage() {
             ) : null}
 
             {items.map((item, index) => (
-              <RecommendationCard item={item} index={index} key={item.movie.id} />
+              <RecommendationCard
+                item={item}
+                index={index}
+                key={item.movie.id}
+                selected={item.movie.id === selectedMovie?.id}
+                onSelect={() => setSelectedMovieId(item.movie.id)}
+              />
             ))}
           </div>
         </div>
 
-        <RecommendationRail
-          mode={mode}
-          prompt={draftRequest.prompt}
-          seedMovieName={seedMovieName}
-          items={items}
-          submitted={Boolean(submittedRequest)}
-        />
+        <MovieDetailPanel movie={selectedMovie} onRecommend={recommendFromMovie} showEmptyActionHint={false} />
       </div>
     </section>
   );

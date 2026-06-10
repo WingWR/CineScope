@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, Filter, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { MovieFilters, MovieSort } from "../../entities/movie/types";
+import type { Movie, MovieFilters, MovieSort } from "../../entities/movie/types";
 import { useDebouncedValue } from "../../shared/hooks/useDebouncedValue";
 import { ConnectionNotice } from "../../shared/ui/ConnectionNotice";
 import { SectionHeader } from "../../shared/ui/SectionHeader";
@@ -30,7 +30,7 @@ const searchScreenBackdropClass =
 const MOVIE_PAGE_SIZE = 25;
 
 type MovieSearchPageProps = {
-  onRecommend: () => void;
+  onRecommend: (movie: Movie) => void;
 };
 
 export function MovieSearchPage({ onRecommend }: MovieSearchPageProps) {
