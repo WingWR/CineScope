@@ -13,7 +13,7 @@ from ...shared.text_utils import normalize_text
 
 DEFAULT_NEIGHBOR_K = 10
 REQUEST_TIMEOUT_SECONDS = 8.0
-LOCAL_RECOMMENDER_PORTS = (3000, 8010)
+LOCAL_RECOMMENDER_PORTS = (3000,)
 
 
 @dataclass(frozen=True)
@@ -68,7 +68,11 @@ class RecommenderClient:
         for index, base_url in enumerate(candidate_urls):
             is_last_candidate = index == len(candidate_urls) - 1
             try:
-                with httpx.Client(base_url=base_url, timeout=REQUEST_TIMEOUT_SECONDS) as client:
+                with httpx.Client(
+                    base_url=base_url,
+                    timeout=REQUEST_TIMEOUT_SECONDS,
+                    trust_env=False,
+                ) as client:
                     response = client.get(path, params=params)
             except httpx.TimeoutException:
                 failure = _RequestFailure(
