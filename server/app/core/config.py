@@ -26,7 +26,7 @@ _load_env_files()
 class AppConfig:
     app_name: str = "CineScope Server"
     version: str = "0.1.0"
-    recommender_base_url: str = "http://127.0.0.1:8010"
+    recommender_base_url: str = "http://127.0.0.1:3000"
     cors_origins: list[str] = field(default_factory=lambda: ["http://127.0.0.1:5173", "http://localhost:5173"])
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
@@ -44,7 +44,7 @@ def get_config() -> AppConfig:
         version=os.getenv("CINESCOPE_VERSION", "0.1.0"),
         recommender_base_url=os.getenv(
             "RECOMMENDER_BASE_URL",
-            os.getenv("CINESCOPE_RECOMMENDER_BASE_URL", "http://127.0.0.1:8010"),
+            os.getenv("CINESCOPE_RECOMMENDER_BASE_URL", "http://127.0.0.1:3000"),
         ),
         cors_origins=[origin.strip() for origin in origins.split(",") if origin.strip()],
         deepseek_api_key=os.getenv("DEEPSEEK_API_KEY", "").strip(),
