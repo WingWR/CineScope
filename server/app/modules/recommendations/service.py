@@ -318,7 +318,12 @@ class RecommendationService:
         items: list[RecommendationItem],
         rag_results: list[RagSearchResult],
     ) -> str:
-        if not items or not self.llm_client.is_enabled():
+        if not self.llm_client.is_enabled():
+            raise HTTPException(
+                status_code=503,
+                detail="DeepSeek API is not configured or is disabled. Agent recommendations require DeepSeek.",
+            )
+        if not items:
             return ""
         rag_context = self._rag_context_text(rag_results)
         try:
@@ -333,8 +338,8 @@ class RecommendationService:
                     temperature=0.2,
                 )
             )
-        except (DeepSeekUnavailableError, DeepSeekError):
-            return ""
+        except (DeepSeekUnavailableError, DeepSeekError) as exc:
+            raise HTTPException(status_code=503, detail=f"DeepSeek API unavailable: {exc}") from exc
 
     def _rag_context_text(self, rag_results: list[RagSearchResult]) -> str:
         parts: list[str] = []
