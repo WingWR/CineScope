@@ -138,53 +138,88 @@ export function RecommendationPage({ initialSeedMovie }: RecommendationPageProps
             </div>
 
             {isAgentMode ? (
-              <div className="grid gap-3 rounded-xl border border-cinema-border bg-[rgba(255,255,255,0.045)] p-3.5">
-                <div className="flex items-center gap-2 text-[0.82rem] font-[760] uppercase text-cinema-amber">
-                  <MessageSquareText size={18} />
-                  <span>Agent brief</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(220px,286px)] items-start gap-3 max-[900px]:grid-cols-1">
+                <div className="grid gap-2.5 rounded-xl border border-cinema-border bg-[rgba(255,255,255,0.045)] p-3">
+                  <div className="flex items-center gap-2 text-[0.82rem] font-[760] uppercase text-cinema-amber">
+                    <MessageSquareText size={18} />
+                    <span>Agent brief</span>
+                  </div>
+                  <textarea
+                    className="min-h-[150px] max-h-[190px] resize-y rounded-lg border border-cinema-border bg-cinema-surface px-3 py-2.5 text-[0.9rem] leading-[1.45] text-cinema-text outline-none focus:border-[rgba(242,177,92,0.48)] focus:shadow-[0_0_0_3px_rgba(242,177,92,0.12)]"
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    placeholder="Example: I want a fast-paced sci-fi movie for a weekend night, not too dark, with strong ratings."
+                    aria-label="Agent recommendation prompt"
+                  />
                 </div>
-                <textarea
-                  className="min-h-[132px] resize-y rounded-lg border border-cinema-border bg-cinema-surface p-3.5 leading-[1.55] text-cinema-text outline-none focus:border-[rgba(242,177,92,0.48)] focus:shadow-[0_0_0_3px_rgba(242,177,92,0.12)]"
-                  value={prompt}
-                  onChange={(event) => setPrompt(event.target.value)}
-                  placeholder="Example: I want a fast-paced sci-fi movie for a weekend night, not too dark, with strong ratings."
-                  aria-label="Agent recommendation prompt"
-                />
+
+                <div className="grid content-start gap-3">
+                  <label className={controlFieldClass}>
+                    <span className={controlLabelClass}>Seed movie</span>
+                    <input
+                      className={textInputClass}
+                      value={seedMovieName}
+                      onChange={(event) => setSeedMovieName(event.target.value)}
+                      placeholder="Optional seed title"
+                    />
+                  </label>
+
+                  <label className={controlFieldClass}>
+                    <span className={controlLabelClass}>Top K</span>
+                    <input
+                      className={textInputClass}
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={topK}
+                      onChange={(event) => setTopK(Number(event.target.value))}
+                    />
+                  </label>
+
+                  <button
+                    className={cx(primaryActionClass, "min-h-[42px] w-full whitespace-nowrap")}
+                    type="button"
+                    onClick={() => requestRecommendations(draftRequest)}
+                  >
+                    Request recommendations
+                    <Sparkles size={16} />
+                  </button>
+                </div>
               </div>
-            ) : null}
+            ) : (
+              <div className="grid grid-cols-[minmax(240px,1fr)_minmax(100px,126px)_auto] items-end gap-3 max-[900px]:grid-cols-[minmax(0,1fr)_126px] max-[640px]:grid-cols-1">
+                <label className={controlFieldClass}>
+                  <span className={controlLabelClass}>Seed movie</span>
+                  <input
+                    className={textInputClass}
+                    value={seedMovieName}
+                    onChange={(event) => setSeedMovieName(event.target.value)}
+                    placeholder="Optional seed title"
+                  />
+                </label>
 
-            <div className="grid grid-cols-[minmax(0,1fr)_minmax(140px,0.28fr)] gap-3 max-[640px]:grid-cols-1">
-              <label className={controlFieldClass}>
-                <span className={controlLabelClass}>Seed movie</span>
-                <input
-                  className={textInputClass}
-                  value={seedMovieName}
-                  onChange={(event) => setSeedMovieName(event.target.value)}
-                  placeholder="Optional seed title"
-                />
-              </label>
+                <label className={controlFieldClass}>
+                  <span className={controlLabelClass}>Top K</span>
+                  <input
+                    className={textInputClass}
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={topK}
+                    onChange={(event) => setTopK(Number(event.target.value))}
+                  />
+                </label>
 
-              <label className={controlFieldClass}>
-                <span className={controlLabelClass}>Top K</span>
-                <input
-                  className={textInputClass}
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={topK}
-                  onChange={(event) => setTopK(Number(event.target.value))}
-                />
-              </label>
-            </div>
-
-            <button
-              className={cx(primaryActionClass, "min-w-[220px] justify-self-end max-[640px]:w-full max-[640px]:justify-self-stretch")}
-              type="button"
-              onClick={() => requestRecommendations(draftRequest)}
-            >
-              Request recommendations
-              <Sparkles size={16} />
-            </button>
+                <button
+                  className={cx(primaryActionClass, "min-h-[42px] min-w-[218px] self-end whitespace-nowrap max-[900px]:col-span-full max-[900px]:justify-self-end max-[640px]:w-full max-[640px]:justify-self-stretch")}
+                  type="button"
+                  onClick={() => requestRecommendations(draftRequest)}
+                >
+                  Request recommendations
+                  <Sparkles size={16} />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-3" aria-busy={isLoading}>
