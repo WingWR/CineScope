@@ -1,19 +1,25 @@
 # CineScope
 
-CineScope 是一个面向电影数据分析、检索、可视化与推荐的课程项目。项目以 MovieLens / TMDB / IMDb 等电影相关数据为基础，完成数据清洗、统计分析、推荐模型构建，并通过前后端应用提供交互式查询、推荐和可视化体验。
+CineScope 是一个面向电影数据分析、检索、可视化与推荐的课程项目。项目以 MovieLens、TMDb、IMDb 等电影相关数据为基础，完成数据清洗、统计分析、推荐模型构建，并通过前端、统一后端和独立推荐服务提供交互式电影搜索、数据可视化、混合推荐和轻量 Agent/RAG 问答能力。
 
-项目包含三个主要运行服务：
+项目运行时主要由三个服务组成：
 
-- 前端应用：React + Vite，默认运行在 `http://127.0.0.1:5173`
-- 统一后端：FastAPI，默认运行在 `http://127.0.0.1:8000`
-- 推荐服务：FastAPI，默认运行在 `http://127.0.0.1:3000`
+- 前端应用 `client`：React + Vite，默认运行在 `http://127.0.0.1:5173`
+- 统一后端 `server`：FastAPI，默认运行在 `http://127.0.0.1:8000`
+- 推荐服务 `recommender`：FastAPI，默认运行在 `http://127.0.0.1:3000`
 
-## 项目模块
+推荐页的主要调用链是：
+
+```text
+client:5173 -> server:8000 -> recommender:3000
+```
+
+## 目录结构
 
 ```text
 CineScope/
-  client/         前端应用，包含电影搜索、推荐页、可视化页面
-  server/         统一后端 API，负责前端请求、电影检索、统计、RAG、Agent、推荐代理
+  client/         前端应用，包含电影搜索、推荐页、数据可视化页面
+  server/         统一后端 API，负责电影检索、统计、RAG、Agent、推荐代理
   recommender/    独立推荐服务，提供内容推荐和协同过滤推荐
   data/           清洗后的最终数据与统计数据
   etl/            数据抽取、清洗、转换流程
@@ -23,112 +29,123 @@ CineScope/
   docs/           项目文档与补充数据说明
 ```
 
-### client
+## 模块介绍
 
-前端页面使用 React 构建，主要页面包括：
+### 1. client 前端模块
+
+`client/` 是用户直接访问的前端应用，使用 React + Vite 构建。它不直接读取本地 CSV 或推荐模型，而是通过统一后端 `server` 获取数据。
+
+主要页面包括：
 
 - Search：电影搜索、筛选、分页、排序、详情展示
 - Recommend：内容推荐、协同过滤推荐、Agent 推荐，以及推荐结果详情展示
-- Atlas：数据集概览、类型分布、预算趋势、票房气泡图、相关性视图等可视化模块
+- Atlas：数据集概览、类型分布、预算趋势、票房气泡图、相关性视图等数据可视化模块
 
-### server
-
-统一后端负责承接前端请求，并对接本地数据、推荐服务和 Agent/RAG 模块。主要接口包括：
-
-- `GET /health`
-- `GET /movies`
-- `GET /movies/{movieId}`
-- `POST /recommendations`
-- `GET /stats/summary`
-- `GET /stats/genres`
-- `GET /stats/budget-trend`
-- `GET /stats/revenue-budget`
-- `GET /stats/correlations`
-- `POST /rag/search`
-- `POST /agent/chat`
-- `POST /agent/recommend`
-
-### recommender
-
-推荐服务是独立的 FastAPI 服务，统一运行在 `3000` 端口。它提供：
-
-- 内容推荐：基于电影简介、类型、标签、语言等特征计算相似电影
-- 协同过滤推荐：基于用户评分矩阵和 KNN 模型生成推荐
-- 推荐结果封装：返回电影、分数、推荐理由和来源
-
-后端 `server` 会通过 HTTP 调用该服务，而不是直接导入推荐代码。
-
-## 运行环境
-
-推荐使用本机已有的 conda `data` 环境运行后端和推荐服务。
-
-前端需要 Node.js 与 npm。
-
-Python 依赖文件：
-
-```text
-server/requirements.txt
-recommender/requirements.txt
-```
-
-前端依赖文件：
-
-```text
-client/package.json
-```
-
-## 配置说明
-
-根目录提供 `.env.example`，推荐复制为 `.env` 后按需修改：
-
-```env
-RECOMMENDER_BASE_URL=http://127.0.0.1:3000
-
-DEEPSEEK_API_KEY=
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-chat
-DEEPSEEK_TIMEOUT_SECONDS=30
-
-AGENT_USE_LLM=true
-AGENT_MAX_CONTEXT_CHARS=5000
-AGENT_MAX_RAG_RESULTS=5
-
-CINESCOPE_APP_NAME=CineScope Server
-CINESCOPE_VERSION=0.1.0
-CINESCOPE_CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
-```
-
-前端使用 `client/.env`：
+关键配置：
 
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8000
 VITE_API_TIMEOUT_MS=8000
 ```
 
-端口约定：
+前端默认访问后端 `server:8000`，所以启动前端前应先确保后端服务可用。
 
-- `5173`：前端 Vite 服务
-- `8000`：统一后端 server
-- `3000`：独立推荐服务 recommender
+### 2. server 统一后端模块
 
-注意：如果使用 `uvicorn recommender.app.main:app` 启动推荐服务，必须显式加上 `--port 3000`，否则 uvicorn 默认会使用 `8000`，与后端 server 冲突。
+`server/` 是面向前端的统一 API 层，使用 FastAPI 构建。它负责承接前端请求，并对接本地数据、推荐服务、统计服务、RAG 和 Agent 模块。
 
-## 项目运行
+主要职责：
 
-以下命令均在项目根目录 `CineScope/` 下执行，除非特别说明。
+- 从 `data/final/movies.csv` 读取电影数据，提供搜索、筛选、排序和详情接口
+- 从统计文件和电影数据中生成数据概览、类型分布、预算趋势、票房预算关系和相关性矩阵
+- 通过 HTTP 调用 `recommender` 服务，向前端提供统一的推荐接口
+- 从项目数据说明和质量报告中构建轻量 RAG 检索
+- 支持项目问答和自然语言推荐 Agent；生成回答需要配置 DeepSeek Key
 
-### 1. 安装依赖
+推荐服务地址由环境变量配置：
+
+```env
+RECOMMENDER_BASE_URL=http://127.0.0.1:3000
+```
+
+### 3. recommender 推荐服务模块
+
+`recommender/` 是独立的推荐微服务，使用 FastAPI 对外提供推荐接口。它和 `server` 分离，后端通过 HTTP 调用它，而不是直接导入推荐算法代码。
+
+主要职责：
+
+- 构建并加载推荐模型产物
+- 提供基于内容的电影相似推荐
+- 提供基于用户评分行为的协同过滤推荐
+- 将推荐结果封装为统一结构，包括电影信息、分数、推荐来源和推荐理由
+
+推荐微服务方法：
+
+- Content-based 推荐：
+  - `overview` 文本使用 `TfidfVectorizer` + cosine similarity
+  - 电影内容特征使用 `CountVectorizer` + cosine similarity
+  - 两类相似度结果合并排序
+
+- Collaborative 推荐：
+  - item-based KNN：基于电影-用户评分矩阵寻找相似电影
+  - user-based KNN：基于用户-电影评分矩阵寻找相似用户偏好
+  - 当同时提供 `user_id` 和 `movie_name` 时，会合并两类候选结果
+
+注意：推荐服务必须运行在 `3000` 端口。如果直接使用 `uvicorn recommender.app.main:app` 而不指定端口，uvicorn 默认会使用 `8000`，容易和统一后端冲突。
+
+### 4. data 数据模块
+
+`data/final/` 保存项目运行依赖的清洗后数据和统计数据。
+
+主要文件：
+
+```text
+data/final/movies.csv
+data/final/ratings.csv
+data/final/tags.csv
+data/final/genre_stats.csv
+data/final/dataset_summary.json
+data/final/quality_report.json
+```
+
+其中：
+
+- `movies.csv`：电影主表，包含标题、年份、类型、评分统计、标签、简介、预算、票房、语言、海报等字段
+- `ratings.csv`：用户评分数据
+- `tags.csv`：用户标签数据
+- `genre_stats.csv`：类型分布统计
+- `dataset_summary.json`：数据集整体规模摘要
+- `quality_report.json`：数据清洗和 TMDb/IMDb 匹配质量报告
+
+### 5. etl / training / models / visualization / docs
+
+这些目录主要用于项目的离线处理、实验和文档补充：
+
+- `etl/`：数据抽取、清洗、转换和合并流程
+- `training/`：模型训练或实验代码
+- `models/`：模型文件和模型产物
+- `visualization/`：可视化实验和图表相关代码
+- `docs/`：项目说明、数据说明和补充文档
+
+## 环境与依赖
+
+Python 依赖：
+
+```text
+server/requirements.txt
+recommender/requirements.txt
+```
 
 安装后端依赖：
 
-```powershell
-E:\CodeEnv\Anaconda\envs\data\python.exe -m pip install -r server\requirements.txt
+```python
+pip install -r server\requirements.txt
 ```
 
 安装推荐服务依赖：
 
-```powershell
-E:\CodeEnv\Anaconda\envs\data\python.exe -m pip install -r recommender\requirements.txt
+```python
+pip install -r recommender\requirements.txt
 ```
 
 安装前端依赖：
@@ -138,39 +155,31 @@ cd client
 npm install
 ```
 
-### 2. 启动推荐服务
+## 项目运行
 
-推荐服务必须先启动，并保持窗口不关闭：
+建议按下面顺序启动三个服务：推荐服务、统一后端、前端。三个服务需要分别占用一个终端窗口，并保持窗口不关闭。
 
-```powershell
-E:\CodeEnv\Anaconda\envs\data\python.exe -m uvicorn recommender.app.main:app --host 127.0.0.1 --port 3000
-```
+### 1. 启动推荐服务 recommender
 
-健康检查：
+在项目根目录 `CineScope/` 下执行：
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:3000/health
+python -m uvicorn recommender.app.main:app --host 127.0.0.1 --port 3000
 ```
 
-如果看到 `artifacts_ready: true`，说明推荐模型产物可用。
+如果端口 `3000` 无法访问，前端推荐页通常会出现 `HTTP 502` 或类似的推荐服务连接失败错误。
 
-### 3. 启动统一后端
+### 2. 启动统一后端 server
 
-另开一个终端窗口：
+另开一个终端窗口，在项目根目录 `CineScope/` 下执行：
 
 ```powershell
-E:\CodeEnv\Anaconda\envs\data\python.exe -m uvicorn server.app.main:app --host 127.0.0.1 --port 8000
+python -m uvicorn server.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-健康检查：
+### 3. 启动前端 client
 
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/health
-```
-
-### 4. 启动前端
-
-另开一个终端窗口：
+再开一个终端窗口：
 
 ```powershell
 cd client
@@ -183,58 +192,4 @@ npm run dev
 http://127.0.0.1:5173
 ```
 
-## 推荐接口检查
-
-推荐页依赖 `server -> recommender` 的调用链。可以用下面的请求检查链路：
-
-```powershell
-Invoke-RestMethod -Method Post `
-  -Uri http://127.0.0.1:8000/recommendations `
-  -ContentType "application/json" `
-  -Body '{"mode":"content","prompt":"","seedMovieName":"Toy Story","userId":"1","topK":3}'
-```
-
-如果返回 `items` 列表，说明前端推荐页可以正常获取数据。
-
-如果前端显示 `The API did not return usable data (HTTP 502)`，通常表示：
-
-- `server:8000` 正常运行
-- 但 `recommender:3000` 没有运行，或推荐服务启动到了错误端口
-
-此时请先检查：
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:3000/health
-```
-
-## 项目功能
-
-### 电影搜索
-
-- 按标题、类型、标签进行搜索
-- 按语言、评分、类型过滤电影
-- 支持按热度、评分、票房、年份排序
-- 支持分页展示
-- 点击电影后显示详情、评分、票房、预算、标签等信息
-
-### 推荐系统
-
-- Content 推荐：根据种子电影推荐相似电影
-- Collaborative 推荐：结合用户评分行为生成推荐
-- Agent 推荐：允许使用自然语言描述偏好，再生成推荐结果
-- 推荐结果支持点击选中，并在右侧展示电影详情
-
-### 数据可视化
-
-- 数据集概览
-- 类型分布
-- 年度预算趋势
-- 预算与票房气泡图
-- 指标相关性视图
-- 多视图 Atlas 切换
-
-### RAG 与 Agent
-
-- 可对项目数据说明、质量报告等文档进行轻量检索
-- 支持项目问答
-- 支持基于自然语言偏好的电影推荐
+此时前端会访问 `server:8000`，后端再按需访问 `recommender:3000`。
