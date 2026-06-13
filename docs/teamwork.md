@@ -75,6 +75,34 @@
   - `visualization/code/revenue_budget_popularity_correlation_heatmap.py`
   - `visualization/code/revenue_popularity_bubble.py`
   - `visualization/code/revenue_year_bubble.py`
+  - `recommender/__init__.py`
+  - `recommender/algorithms/__init__.py`
+  - `recommender/algorithms/collaborative/builder.py`
+  - `recommender/algorithms/collaborative/item_knn.py`
+  - `recommender/algorithms/collaborative/recommender.py`
+  - `recommender/algorithms/collaborative/user_knn.py`
+  - `recommender/algorithms/collaborative/__init__.py`
+  - `recommender/algorithms/content_based/builder.py`
+  - `recommender/algorithms/content_based/features.py`
+  - `recommender/algorithms/content_based/recommender.py`
+  - `recommender/algorithms/content_based/__init__.py`
+  - `recommender/app/main.py`
+  - `recommender/app/routes.py`
+  - `recommender/app/schemas.py`
+  - `recommender/app/settings.py`
+  - `recommender/app/__init__.py`
+  - `recommender/core/exceptions.py`
+  - `recommender/core/ranking.py`
+  - `recommender/core/service.py`
+  - `recommender/core/__init__.py`
+  - `recommender/data/loaders.py`
+  - `recommender/data/preprocess.py`
+  - `recommender/data/__init__.py`
+  - `recommender/scripts/build_all.py`
+  - `recommender/scripts/build_collaborative_artifacts.py`
+  - `recommender/scripts/build_content_artifacts.py`
+  - `recommender/scripts/demo.py`
+  - `recommender/scripts/__init__.py`
 - 工作量百分比：
   - **25 %**
 
