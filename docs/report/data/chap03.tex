@@ -1,0 +1,274 @@
+\chapter{实验设计与结果分析}
+\label{chap:experiment}
+
+\section{实验环境与数据集}
+\label{sec:exp:dataset}
+
+\subsection{软硬件环境}
+
+实验在本地环境完成，主要依赖如下：
+
+\begin{itemize}
+    \item \textbf{Python 环境}：pandas、numpy、scikit-learn、scipy、XGBoost、LightGBM、FastAPI、uvicorn；
+    \item \textbf{前端环境}：Node.js、React 19、TypeScript、Vite；
+    \item \textbf{服务端口}：前端 5173、统一后端 8000、推荐服务 3000。
+\end{itemize}
+
+\subsection{终版数据集统计}
+
+表~\ref{tab:dataset} 给出了 CineScope 终版数据集规模。该数据集源自 MovieLens \texttt{ml-latest-small}，并与 TMDb 详情完成全量匹配。
+
+\begin{table}[htbp]
+    \centering
+    \caption{CineScope 终版数据集统计} \label{tab:dataset}
+    \begin{tabularx}{0.85\textwidth}{|c|X|}
+        \hline
+        \textbf{指标} & \textbf{数值} \\
+        \hline
+        电影数量 & 9727 \\
+        \hline
+        用户数量 & 610 \\
+        \hline
+        评分数量 & 100811 \\
+        \hline
+        标签数量 & 3678 \\
+        \hline
+        电影类型数 & 19 \\
+        \hline
+        平均评分 & 3.50 \\
+        \hline
+        非零票房样本 & 6235 \\
+        \hline
+        非零预算样本 & 5844 \\
+        \hline
+        预算与票房均非零样本 & 5230 \\
+        \hline
+    \end{tabularx}
+\end{table}
+
+评分矩阵稀疏度约为 $1 - 100811/(610 \times 9727) \approx 98.3\%$。类型分布呈明显长尾，Drama 与 Comedy 占据多数，电影数量排名前列的类型见表~\ref{tab:genre-top}。
+
+\begin{table}[H]
+    \centering
+    \caption{电影类型分布（Top 10）} \label{tab:genre-top}
+    \renewcommand{\arraystretch}{1.2}
+    \setlength{\tabcolsep}{10pt}
+    \begin{tabular}{|c|l|r|}
+        \hline
+        \textbf{排名} & \textbf{电影类型} & \textbf{电影数量（部）} \\
+        \hline
+        1  & Drama     & 4355 \\
+        \hline
+        2  & Comedy    & 3753 \\
+        \hline
+        3  & Thriller  & 1891 \\
+        \hline
+        4  & Action    & 1827 \\
+        \hline
+        5  & Romance   & 1594 \\
+        \hline
+        6  & Adventure & 1261 \\
+        \hline
+        7  & Crime     & 1195 \\
+        \hline
+        8  & Horror    & 976 \\
+        \hline
+        9  & Sci-Fi    & 975 \\
+        \hline
+        10 & Fantasy   & 779 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\section{数据清洗实验结果}
+\label{sec:exp:etl}
+
+ETL 实验重点验证可用样本规模与字段完整性。质量报告显示：
+
+\begin{itemize}
+    \item 原始电影 9742 部，剔除无 TMDb 详情记录后保留 9727 部；
+    \item 全部终版电影均具有非空 \texttt{tmdb\_id} 与 TMDb 详情；
+    \item 财务元数据匹配成功 9386 部，其中 IMDb 回退匹配 4 部；
+    \item 简介缺失 35 部、片长缺失 41 部，整体缺失率较低。
+\end{itemize}
+
+从剔除规则看，无 \texttt{tmdb\_id} 记录 8 部、无 TMDb 详情记录 7 部，合计丢弃 15 部影片；与之关联的评分与标签分别减少 25 条与 5 条，对整体行为数据影响有限。财务元数据方面，TMDb 电影端点匹配 9628 部、电视剧端点匹配 99 部，另有 35 部通过 IMDb ID 回退完成详情补全；最终 9386 部影片获得预算或票房字段，其中预算与票房均非零的交集样本为 5230 条，可直接用于预算—票房相关性分析与散点可视化。
+
+上述结果表明，数据清洗策略能够在保证样本规模的同时控制关键字段缺失，为票房预测与内容推荐提供稳定输入。
+
+\section{票房预测实验}
+\label{sec:exp:revenue}
+
+\subsection{实验设置}
+
+票房预测实验采用第~\ref{sec:method:revenue}~节方法，随机种子为 42，验证集比例 0.2。评价指标包括 $\log$ 空间 RMSE、MAE、$R^2$，以及还原到美元空间后的 RMSE、MAE 与 MAPE。
+
+\subsection{单模型与集成结果}
+
+表~\ref{tab:revenue-metrics} 汇总了 XGBoost、LightGBM 与集成模型在验证集上的表现。可以看到，两模型在 $\log$ 空间性能接近，集成后 $\text{RMSE}_{\log}$ 基本持平并略降至 1.275，$R^2_{\log}$ 提升至 0.652。
+
+\begin{table}[htbp]
+    \centering
+    \caption{票房预测模型验证集指标} \label{tab:revenue-metrics}
+    \renewcommand{\arraystretch}{1.2}
+    \setlength{\tabcolsep}{12pt}
+    \begin{tabular}{|c|c|c|c|}
+        \hline
+        \textbf{模型} & $\textbf{RMSE}_{\log}$ & $\textbf{MAE}_{\log}$ & $\textbf{R}^2_{\log}$ \\
+        \hline
+        XGBoost  & 1.275 & 0.858 & 0.652 \\
+        \hline
+        LightGBM & 1.296 & 0.868 & 0.641 \\
+        \hline
+        集成模型 & 1.275 & 0.857 & 0.652 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+在原始票房空间，集成模型验证集 $\text{RMSE} \approx 9.53 \times 10^7$ 美元，$\text{MAE} \approx 3.94 \times 10^7$ 美元。需要指出的是，由于票房分布极端偏斜，MAPE 对低票房样本非常敏感，因此该指标在本任务中仅供参考。
+
+\subsection{结果分析}
+
+$R^2_{\log} \approx 0.65$ 说明模型能够解释约 65\% 的 $\log$ 票房方差，在当前数据集与特征设定下具有较好的回归拟合效果。进一步比较单模型与集成效果可见，XGBoost 在 $\log$ 空间 $R^2_{\log}$ 已达 0.652，LightGBM 为 0.641；集成权重 88:12 的设定表明当前特征体系下 XGBoost 贡献更大，集成主要起到误差微调和稳定性增强作用。
+
+\subsection{特征重要性分析}
+
+表~\ref{tab:feature-importance} 给出了 XGBoost 模型的特征重要性 Top 10（按训练损失下降量统计）。预算（\texttt{budget}）与 TMDb 热度（\texttt{tmdb\_popularity}）位列前两位，合计贡献超过一半；上映年份、评分计数及其对数变换紧随其后，反映影片新旧程度与受众基础对票房的间接影响。语言特征 \texttt{lang\_en} 进入前十，说明英语发行市场对票房仍具显著区分度。该结果与第~\ref{sec:exp:visualization}~节相关性分析中“预算、热度与票房正相关、评分与票房弱相关”的结论相互印证。
+
+\begin{table}[htbp]
+    \centering
+    \caption{票房预测 XGBoost 特征重要性 Top 10} \label{tab:feature-importance}
+    \renewcommand{\arraystretch}{1.2}
+    \setlength{\tabcolsep}{10pt}
+    \begin{tabular}{|c|l|r|}
+        \hline
+        \textbf{排名} & \textbf{特征} & \textbf{相对重要性（\%）} \\
+        \hline
+        1  & budget              & 48.6 \\
+        \hline
+        2  & tmdb\_popularity    & 22.3 \\
+        \hline
+        3  & movie\_year         &  6.8 \\
+        \hline
+        4  & rating\_count       &  6.1 \\
+        \hline
+        5  & log\_budget         &  6.0 \\
+        \hline
+        6  & runtime\_minutes    &  3.4 \\
+        \hline
+        7  & log\_tmdb\_popularity & 2.4 \\
+        \hline
+        8  & rating\_mean        &  2.3 \\
+        \hline
+        9  & log\_rating\_count  &  1.9 \\
+        \hline
+        10 & lang\_en            &  1.9 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\section{电影检索功能实验}
+\label{sec:exp:search}
+
+电影检索模块支持按标题、简介、类型和标签进行统一关键词搜索，并可通过类型、语言、最低评分等参数组合过滤，同时提供按热度、评分、票房、年份升降序排列。实验中对以下场景进行了验证：
+
+\begin{itemize}
+    \item \textbf{关键词搜索}：输入 ``Star'' 可召回标题、简介、类型或标签中包含该关键词的 174 部电影，涵盖 \textit{Star Wars} 系列及标题含 ``star'' 的其他影片，分页默认每页 25 条；
+    \item \textbf{类型过滤}：限定 Sci-Fi 类型后，结果集与 \texttt{genre\_stats.csv} 中该类型总量一致；
+    \item \textbf{语言过滤}：支持 ``中文''、``English'' 等多种别名写法，由后端统一映射至 ISO 语言代码；
+    \item \textbf{详情展示}：点击电影条目后，右侧面板展示评分统计、预算票房、简介与标签等完整字段。
+\end{itemize}
+
+实验表明，检索服务能够较快响应本地 CSV 查询请求，满足交互式检索与详情展示需求。该模块为推荐页的种子电影选择与可视化页的样本钻取提供了统一数据入口。
+
+\section{推荐系统实验}
+\label{sec:exp:recommendation}
+
+\subsection{离线产物覆盖}
+
+推荐离线构建结果显示：
+
+\begin{itemize}
+    \item 内容推荐 artifacts 覆盖 9727 部电影；
+    \item 协同过滤 artifacts 覆盖 9727 部电影、610 用户、100811 评分；
+    \item 服务健康检查接口返回 \texttt{artifacts\_ready: true}。
+\end{itemize}
+
+\subsection{在线推荐样例}
+
+以种子电影 ``Toy Story'' 为例，调用统一后端推荐接口：
+\begin{verbatim}
+POST /recommendations
+{"mode":"content","seedMovieName":"Toy Story","topK":3}
+\end{verbatim}
+系统能够返回包含电影 ID、相似度分数、推荐理由与来源标签的 \texttt{items} 列表，说明 \texttt{server -> recommender} 链路联通正常。
+
+对协同过滤场景，传入 \texttt{user\_id=1} 与 \texttt{movie\_name=Toy Story} 时，系统能够同时融合 Item KNN 与 User KNN 结果；仅传入用户 ID 时，则返回纯个性化推荐列表。表~\ref{tab:rec-compare} 对比了两种推荐路径的 Top 5 结果：内容推荐高度集中于同系列续作（\textit{Toy Story 2} 相似度 0.947、\textit{Toy Story 3} 为 0.782），协同过滤则在保留续作的同时引入 \textit{Shrek}、\textit{The Lion King} 等同类型高评分作品，体现文本相似与行为相似两种召回逻辑的差异。
+
+\begin{table}[htbp]
+    \centering
+    \caption{以 Toy Story 为种子的推荐结果对比（Top 5）} \label{tab:rec-compare}
+    \renewcommand{\arraystretch}{1.15}
+    \setlength{\tabcolsep}{5pt}
+    \small
+    \begin{tabular}{|c|l|r|l|r|}
+        \hline
+        \textbf{排名} & \textbf{内容推荐} & \textbf{相似度} & \textbf{协同推荐} & \textbf{分数} \\
+        \hline
+        1 & Toy Story 2       & 0.947 & Toy Story 2      & 0.865 \\
+        \hline
+        2 & Toy Story 3       & 0.782 & Shrek            & 0.835 \\
+        \hline
+        3 & The Good Dinosaur & 0.494 & The Lion King    & 0.768 \\
+        \hline
+        4 & Turbo             & 0.488 & Monsters, Inc.   & 0.749 \\
+        \hline
+        5 & Coco              & 0.480 & Twelve Monkeys   & 0.718 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\subsection{Agent 推荐实验}
+
+\texttt{/agent/recommend} 与 \texttt{agent-ready} 推荐模式可接受自然语言偏好，例如“推荐几部高分科幻片，不要恐怖片”。系统流程为：Planner 规则解析偏好 $\rightarrow$ RAG 检索相关文档与电影字段 $\rightarrow$ 调用推荐服务生成候选 $\rightarrow$ 组织最终推荐解释。
+
+\section{可视化与统计分析实验}
+\label{sec:exp:visualization}
+
+离线可视化模块生成 6 张 SVG 图表，主要发现如下：
+
+\begin{enumerate}
+    \item \textbf{预算年代趋势}：在 1970--2020 年区间，有预算记录的电影共 5372 部。年均预算从 1970 年的约 639 万美元上升至 2010 年的约 4463 万美元，反映商业制作成本的整体抬升；
+    \item \textbf{语言—票房结构}：在 6235 部非零票房样本中，英语电影 5699 部，中位数票房约 3043 万美元；法语、日语电影样本量分别为 140 部与 98 部，中位数票房约 629 万与 1200 万美元，小语种长尾明显；
+    \item \textbf{预算—票房关系}：散点图覆盖 5158 部同时满足预算不低于 10 万美元、票房不低于 5 万美元的电影，高预算并不保证高票房，存在大量“高预算低票房”离群点；
+    \item \textbf{相关性热力图}：在 5225 部样本上，$\log_{10}$ 变换后票房与预算的 Pearson 相关系数为 0.67，票房与热度为 0.59，票房与评分计数为 0.46，而票房与评分均值相关性仍较弱。
+\end{enumerate}
+
+表~\ref{tab:correlation} 进一步汇总了原始美元空间下的主要变量相关性（$n=5230$，预算与票房均非零）。可以看到，预算与票房的 Pearson 相关系数达 0.735，热度与票房为 0.487，而评分均值与票房仅 0.057，再次说明口碑与商业表现在本数据集中并非简单线性对应。
+
+\begin{table}[htbp]
+    \centering
+    \caption{主要变量 Pearson 相关系数（$n=5230$）} \label{tab:correlation}
+    \renewcommand{\arraystretch}{1.2}
+    \setlength{\tabcolsep}{12pt}
+    \begin{tabular}{|l|r|}
+        \hline
+        \textbf{变量对} & \textbf{相关系数} \\
+        \hline
+        预算 $\leftrightarrow$ 票房   & 0.735 \\
+        \hline
+        票房 $\leftrightarrow$ 热度   & 0.487 \\
+        \hline
+        预算 $\leftrightarrow$ 热度   & 0.348 \\
+        \hline
+        评分 $\leftrightarrow$ 热度   & 0.144 \\
+        \hline
+        预算 $\leftrightarrow$ 评分   & 0.072 \\
+        \hline
+        票房 $\leftrightarrow$ 评分   & 0.057 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+前端 Atlas 通过 \texttt{/stats/summary}、\texttt{/stats/genres}、\texttt{/stats/budget-trend}、\texttt{/stats/revenue-budget} 与 \texttt{/stats/correlations} 在线展示预算趋势、类型分布、预算—票房散点与相关性矩阵等统计视图，其中散点视图按热度选取 Top 160 部影片进行重点展示。
+
