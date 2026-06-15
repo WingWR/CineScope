@@ -31,9 +31,10 @@ const MOVIE_PAGE_SIZE = 25;
 
 type MovieSearchPageProps = {
   onRecommend: (movie: Movie) => void;
+  onPredict: (movie: Movie) => void;
 };
 
-export function MovieSearchPage({ onRecommend }: MovieSearchPageProps) {
+export function MovieSearchPage({ onRecommend, onPredict }: MovieSearchPageProps) {
   const [search, setSearch] = useState("");
   const [genre, setGenre] = useState("");
   const [language, setLanguage] = useState("");
@@ -200,7 +201,7 @@ export function MovieSearchPage({ onRecommend }: MovieSearchPageProps) {
           )}
         </div>
 
-        <MovieDetailPanel movie={selectedMovie} onRecommend={onRecommend} />
+        <MovieDetailPanel movie={selectedMovie} onRecommend={onRecommend} onPredict={onPredict} />
       </div>
     </section>
   );
