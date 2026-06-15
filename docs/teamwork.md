@@ -188,6 +188,6 @@
   - `report.pdf`
   - `project_plan.md`
   - `teamwork.md`
-  - `/poster.pdf`
+  - `poster.pdf`
 - 工作量百分比：
   - **25 %**
