@@ -17,6 +17,7 @@ from .modules.agent.router import router as agent_router
 from .modules.movies.router import router as movies_router
 from .modules.rag.router import router as rag_router
 from .modules.recommendations.router import router as recommendations_router
+from .modules.revenue.router import router as revenue_router
 from .modules.stats.router import router as stats_router
 
 
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
 
     app.include_router(movies_router)
     app.include_router(recommendations_router)
+    app.include_router(revenue_router)
     app.include_router(stats_router)
     app.include_router(rag_router)
     app.include_router(agent_router)

@@ -1,4 +1,4 @@
-import { BarChart3, HeartHandshake, Search } from "lucide-react";
+import { BarChart3, HeartHandshake, Search, TrendingUp } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { cx } from "../../shared/ui/classes";
 import type { AppView } from "../App";
@@ -12,6 +12,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { id: "search", label: "Search", icon: Search },
   { id: "recommend", label: "Recommend", icon: HeartHandshake },
+  { id: "predict", label: "Predict", icon: TrendingUp },
   { id: "atlas", label: "Atlas", icon: BarChart3 },
 ];
 
