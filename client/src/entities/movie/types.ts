@@ -25,6 +25,8 @@ export type MovieFilters = {
   language?: string;
   minRating?: number;
   sort?: MovieSort;
+  page?: number;
+  pageSize?: number;
 };
 
 export type RecommendationMode = "content" | "collaborative" | "agent-ready";
@@ -75,4 +77,54 @@ export type CorrelationCell = {
   x: string;
   y: string;
   value: number;
+};
+
+export type RevenuePredictionRequest = {
+  movieName?: string;
+  features?: Record<string, unknown>;
+};
+
+export type FeatureSchemaItem = {
+  name: string;
+  label: string;
+  kind: "numeric" | "categorical";
+  defaultValue: unknown;
+  options: string[] | null;
+  description: string;
+};
+
+export type FeatureSchemaResponse = {
+  genres: string[];
+  languages: string[];
+  numericFields: FeatureSchemaItem[];
+  featureCount: number;
+  referenceYear: number;
+};
+
+export type EnsembleWeights = {
+  xgboost: number;
+  lightgbm: number;
+};
+
+export type ModelMetrics = {
+  rmseLog: number;
+  maeLog: number;
+  r2Log: number;
+};
+
+export type RevenuePredictionResponse = {
+  movieId: number | null;
+  movieName: string;
+  movieYear: number | null;
+  predictedRevenue: number;
+  predictedRevenueFormatted: string;
+  xgboostPredictedRevenue: number;
+  xgboostPredictedRevenueFormatted: string;
+  lightgbmPredictedRevenue: number;
+  lightgbmPredictedRevenueFormatted: string;
+  ensembleWeights: EnsembleWeights;
+  modelMetrics: ModelMetrics;
+  actualRevenue: number | null;
+  actualRevenueFormatted: string | null;
+  featureCount: number;
 };

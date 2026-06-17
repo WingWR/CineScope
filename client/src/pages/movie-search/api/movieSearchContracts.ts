@@ -2,5 +2,7 @@ import type { Movie } from "../../../entities/movie/types";
 
 export type MovieListResponse = {
   items: Movie[];
-  total?: number;
+  total: number;
+  page: number;
+  pageSize: number;
 };

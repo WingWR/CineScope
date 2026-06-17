@@ -1,0 +1,193 @@
+# 团队分工声明
+
+## 成员 1：王雷 2351299
+
+- 完成的具体代码文件：
+  - `client/index.html`
+  - `client/vite.config.ts`
+  - `client/src/main.tsx`
+  - `client/src/app/App.tsx`
+  - `client/src/app/layout/AppShell.tsx`
+  - `client/src/entities/movie/formatters.ts`
+  - `client/src/entities/movie/types.ts`
+  - `client/src/pages/movie-search/MovieSearchPage.tsx`
+  - `client/src/pages/movie-search/api/index.ts`
+  - `client/src/pages/movie-search/api/movieSearchApi.ts`
+  - `client/src/pages/movie-search/api/movieSearchContracts.ts`
+  - `client/src/pages/movie-search/components/MovieDetailPanel.tsx`
+  - `client/src/pages/movie-search/components/MovieGrid.tsx`
+  - `client/src/pages/movie-search/components/MoviePosterCard.tsx`
+  - `client/src/pages/movie-search/hooks/useMovieSearch.ts`
+  - `client/src/pages/recommendation/RecommendationPage.tsx`
+  - `client/src/pages/recommendation/api/index.ts`
+  - `client/src/pages/recommendation/api/recommendationApi.ts`
+  - `client/src/pages/recommendation/api/recommendationContracts.ts`
+  - `client/src/pages/recommendation/components/RecommendationCard.tsx`
+  - `client/src/pages/recommendation/components/RecommendationRail.tsx`
+  - `client/src/pages/recommendation/hooks/useRecommendations.ts`
+  - `client/src/pages/visualization/VisualizationPage.tsx`
+  - `client/src/pages/visualization/api/atlasApi.ts`
+  - `client/src/pages/visualization/api/index.ts`
+  - `client/src/pages/visualization/components/charts/BudgetTrendChart.tsx`
+  - `client/src/pages/visualization/components/charts/chartClasses.ts`
+  - `client/src/pages/visualization/components/charts/chartMath.ts`
+  - `client/src/pages/visualization/components/charts/CorrelationMatrix.tsx`
+  - `client/src/pages/visualization/components/charts/GenreBars.tsx`
+  - `client/src/pages/visualization/components/charts/RevenueScatter.tsx`
+  - `client/src/pages/visualization/hooks/useAtlasData.ts`
+  - `client/src/shared/api/client.ts`
+  - `client/src/shared/api/config.ts`
+  - `client/src/shared/api/errors.ts`
+  - `client/src/shared/api/index.ts`
+  - `client/src/shared/hooks/useDebouncedValue.ts`
+  - `client/src/shared/styles/global.css`
+  - `client/src/shared/ui/classes.ts`
+  - `client/src/shared/ui/ConnectionNotice.tsx`
+  - `client/src/shared/ui/IconButton.tsx`
+  - `client/src/shared/ui/MetricTile.tsx`
+  - `client/src/shared/ui/SectionHeader.tsx`
+  - `training/cli.py`
+  - `training/config.py`
+  - `training/pipeline.py`
+  - `training/train_ensemble.py`
+  - `training/train_lightgbm.py`
+  - `training/train_revenue.py`
+  - `training/train_xgboost.py`
+  - `training/__init__.py`
+  - `training/algorithms/ensemble.py`
+  - `training/algorithms/lightgbm_model.py`
+  - `training/algorithms/xgboost_model.py`
+  - `training/algorithms/__init__.py`
+  - `training/data/features.py`
+  - `training/data/loader.py`
+  - `training/data/split.py`
+  - `training/data/__init__.py`
+  - `training/evaluation/metrics.py`
+  - `training/evaluation/__init__.py`
+  - `models/data_loader.py`
+  - `models/revenue_features.py`
+  - `models/revenue_predictor.py`
+  - `models/__init__.py`
+  - `visualization/code/budget_year_average_curve.py`
+  - `visualization/code/common_svg.py`
+  - `visualization/code/language_revenue_tower.py`
+  - `visualization/code/revenue_budget_bubble.py`
+  - `visualization/code/revenue_budget_popularity_correlation_heatmap.py`
+  - `visualization/code/revenue_popularity_bubble.py`
+  - `visualization/code/revenue_year_bubble.py`
+  - `recommender/__init__.py`
+  - `recommender/algorithms/__init__.py`
+  - `recommender/algorithms/collaborative/builder.py`
+  - `recommender/algorithms/collaborative/item_knn.py`
+  - `recommender/algorithms/collaborative/recommender.py`
+  - `recommender/algorithms/collaborative/user_knn.py`
+  - `recommender/algorithms/collaborative/__init__.py`
+  - `recommender/algorithms/content_based/builder.py`
+  - `recommender/algorithms/content_based/features.py`
+  - `recommender/algorithms/content_based/recommender.py`
+  - `recommender/algorithms/content_based/__init__.py`
+  - `recommender/app/main.py`
+  - `recommender/app/routes.py`
+  - `recommender/app/schemas.py`
+  - `recommender/app/settings.py`
+  - `recommender/app/__init__.py`
+  - `recommender/core/exceptions.py`
+  - `recommender/core/ranking.py`
+  - `recommender/core/service.py`
+  - `recommender/core/__init__.py`
+  - `recommender/data/loaders.py`
+  - `recommender/data/preprocess.py`
+  - `recommender/data/__init__.py`
+  - `recommender/scripts/build_all.py`
+  - `recommender/scripts/build_collaborative_artifacts.py`
+  - `recommender/scripts/build_content_artifacts.py`
+  - `recommender/scripts/demo.py`
+  - `recommender/scripts/__init__.py`
+- 工作量百分比：
+  - **25 %**
+
+## 成员 2：黄景胤 2351129
+
+- 完成的具体代码文件：
+  - `etl/prepare_movie_data.py`
+  - `etl/cinescope_data/cli.py`
+  - `etl/cinescope_data/config.py`
+  - `etl/cinescope_data/movielens.py`
+  - `etl/cinescope_data/outputs.py`
+  - `etl/cinescope_data/pipeline.py`
+  - `etl/cinescope_data/submission.py`
+  - `etl/cinescope_data/tmdb_client.py`
+  - `etl/cinescope_data/transform.py`
+  - `etl/cinescope_data/utils.py`
+  - `etl/cinescope_data/__init__.py`
+- 工作量百分比：
+  - **25 %**
+
+## 成员 3：周达 2354185
+
+- 完成的具体代码/配置/文档文件：
+  - `server/API_CONTRACT.md`
+  - `server/README.md`
+  - `requirements.txt`
+  - `server/app/main.py`
+  - `server/app/__init__.py`
+  - `server/app/core/config.py`
+  - `server/app/core/errors.py`
+  - `server/app/core/paths.py`
+  - `server/app/core/response.py`
+  - `server/app/core/__init__.py`
+  - `server/app/modules/__init__.py`
+  - `server/app/modules/agent/llm_client.py`
+  - `server/app/modules/agent/planner.py`
+  - `server/app/modules/agent/prompts.py`
+  - `server/app/modules/agent/router.py`
+  - `server/app/modules/agent/schemas.py`
+  - `server/app/modules/agent/service.py`
+  - `server/app/modules/agent/tools.py`
+  - `server/app/modules/agent/__init__.py`
+  - `server/app/modules/movies/mappers.py`
+  - `server/app/modules/movies/repository.py`
+  - `server/app/modules/movies/router.py`
+  - `server/app/modules/movies/schemas.py`
+  - `server/app/modules/movies/service.py`
+  - `server/app/modules/movies/__init__.py`
+  - `server/app/modules/rag/document_loader.py`
+  - `server/app/modules/rag/indexer.py`
+  - `server/app/modules/rag/models.py`
+  - `server/app/modules/rag/retriever.py`
+  - `server/app/modules/rag/router.py`
+  - `server/app/modules/rag/schemas.py`
+  - `server/app/modules/rag/service.py`
+  - `server/app/modules/rag/vector_store.py`
+  - `server/app/modules/rag/__init__.py`
+  - `server/app/modules/recommendations/mappers.py`
+  - `server/app/modules/recommendations/recommender_client.py`
+  - `server/app/modules/recommendations/router.py`
+  - `server/app/modules/recommendations/schemas.py`
+  - `server/app/modules/recommendations/service.py`
+  - `server/app/modules/recommendations/__init__.py`
+  - `server/app/modules/revenue/schemas.py`
+  - `server/app/modules/revenue/service.py`
+  - `server/app/modules/revenue/__init__.py`
+  - `server/app/modules/stats/repository.py`
+  - `server/app/modules/stats/router.py`
+  - `server/app/modules/stats/schemas.py`
+  - `server/app/modules/stats/service.py`
+  - `server/app/modules/stats/__init__.py`
+  - `server/app/shared/cache.py`
+  - `server/app/shared/csv_loader.py`
+  - `server/app/shared/json_loader.py`
+  - `server/app/shared/text_utils.py`
+  - `server/app/shared/__init__.py`
+- 工作量百分比：
+  - **25 %**
+
+## 成员 4：林琪 2352609
+
+- 负责/撰写的项目报告文件：
+  - `thesis.pdf`
+  - `project_plan.md`
+  - `teamwork.md`
+  - `poster.pdf`
+- 工作量百分比：
+  - **25 %**

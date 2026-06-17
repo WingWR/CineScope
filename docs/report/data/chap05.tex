@@ -1,0 +1,32 @@
+\chapter{总结与展望}
+\label{chap:conclusion}
+
+\section{工作总结}
+\label{sec:conclusion:summary}
+
+本文围绕电影数据分析与推荐这一典型应用场景，完成了 CineScope 系统的设计、实现与实验验证。研究工作从多源数据清洗出发，构建了包含 9727 部电影、100811 条评分与 3678 条标签的终版数据集，并在保证 99.8\% 电影保留率的前提下完成财务元数据匹配与质量审计；在此基础上实现了票房预测、内容推荐、协同过滤推荐、统计可视化、RAG 检索与 Agent 推荐等功能，并通过 React 前端与 FastAPI 后端形成可交互原型。
+
+实验结果表明：
+
+\begin{enumerate}
+    \item ETL 流水线能够在保证样本规模的同时输出可审计的数据质量报告；
+    \item XGBoost 与 LightGBM 集成模型在验证集上取得 $R^2_{\log} \approx 0.652$，预算与 TMDb 热度为最重要特征；
+    \item 内容推荐与协同过滤在 ``Toy Story'' 等样例上呈现差异化召回，推荐微服务可稳定对外提供 HTTP 接口并支持 Agent 推荐；
+    \item 三服务架构在联调环境下能够完成端到端演示，具备进一步扩展与二次开发价值。
+\end{enumerate}
+
+\section{主要创新点}
+\label{sec:conclusion:innovation}
+
+CineScope 在工程组织上体现了以下特点：
+
+\begin{itemize}
+    \item 以“数据产物—模型产物—服务接口—前端页面”分层设计，强化模块边界与可维护性；
+    \item 将推荐能力独立为微服务，通过 HTTP 解耦算法迭代与业务聚合；
+    \item 在统一系统中同时覆盖预测、推荐、可视化与问答，形成较完整的数据应用闭环。
+\end{itemize}
+
+\section{展望}
+\label{sec:conclusion:outlook}
+
+未来工作将聚焦于推荐离线评估体系、语义检索增强、混合推荐策略与容器化部署四个方面。系统建设过程也表明：真实数据清洗与模型训练同等重要，artifact 化管理是在线服务可维护性的基础，推荐系统的体验取决于算法、接口与交互的协同。总体而言，CineScope 验证了从数据到服务的系统化路径，为后续工程实践提供了可参考的基础框架。

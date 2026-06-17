@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from server.app.modules.stats.schemas import (
+from ...modules.stats.schemas import (
     AtlasSummary,
     BudgetTrendPoint,
     CorrelationCell,
     GenreDistributionItem,
     RevenueBudgetPoint,
 )
-from server.app.modules.stats.service import StatsService, get_stats_service
+from ...modules.stats.service import StatsService, get_stats_service
 
 
 router = APIRouter(prefix="/stats", tags=["stats"])

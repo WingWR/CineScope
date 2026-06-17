@@ -80,11 +80,6 @@ export function RevenueScatter({ points }: RevenueScatterProps) {
               style={{ animationDelay: `${index * 56}ms` } as CSSProperties}
               onMouseEnter={() => setActiveTitle(point.title)}
             />
-            {point.title === activeTitle ? (
-              <text className={chartLabelClass} x={point.x + point.r + 8} y={point.y + 4}>
-                {point.title}
-              </text>
-            ) : null}
           </g>
         ))}
         <text className={chartLabelClass} x="650" y="420">

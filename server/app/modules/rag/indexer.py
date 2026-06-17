@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from server.app.core.errors import not_implemented
+from ...modules.rag.retriever import RagRetriever
 
 
 class RagIndexer:
+    def __init__(self, retriever: RagRetriever | None = None) -> None:
+        self.retriever = retriever or RagRetriever()
+
     def build_index(self, source_names: list[str] | None = None):
-        not_implemented("rag.indexer", "build_index")
+        return self.retriever.rebuild(source_names=source_names)

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from server.app.modules.movies.schemas import Movie, MovieListResponse, MovieSort
-from server.app.modules.movies.service import MovieService, get_movie_service
+from ...modules.movies.schemas import Movie, MovieListResponse, MovieSort
+from ...modules.movies.service import MovieService, get_movie_service
 
 
 router = APIRouter(prefix="/movies", tags=["movies"])
@@ -16,6 +16,8 @@ def list_movies(
     language: str | None = Query(None),
     minRating: float | None = Query(None, ge=0, le=5),
     sort: MovieSort | None = Query(None),
+    page: int = Query(1, ge=1),
+    pageSize: int = Query(25, ge=1, le=60),
     service: MovieService = Depends(get_movie_service),
 ) -> MovieListResponse:
     return service.list_movies(
@@ -24,6 +26,8 @@ def list_movies(
         language=language,
         min_rating=minRating,
         sort=sort,
+        page=page,
+        page_size=pageSize,
     )
 
 

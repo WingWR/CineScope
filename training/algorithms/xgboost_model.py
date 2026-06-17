@@ -19,7 +19,7 @@ def train_xgboost_regressor(
     except ImportError as exc:
         raise ImportError(
             "xgboost is required. Install training dependencies with: "
-            "python -m pip install -r training/requirements.txt"
+            "python -m pip install -r requirements.txt"
         ) from exc
 
     train_matrix = xgb.DMatrix(x_train, label=y_train, feature_names=list(x_train.columns))

@@ -1,0 +1,216 @@
+\chapter{系统设计与关键技术}
+\label{chap:method}
+
+\section{系统总体架构}
+\label{sec:method:architecture}
+
+CineScope 采用“数据层—模型层—服务层—展示层”四层架构。数据层负责多源数据清洗与终版数据产出；模型层包含票房预测产物与推荐离线产物；服务层由统一后端与独立推荐微服务组成；展示层基于 React 提供搜索、推荐与可视化交互。系统总体架构如图~\ref{fig:architecture} 所示。
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{0.82\textwidth}{!}{%
+    \begin{tikzpicture}[node distance = 7pt, font=\footnotesize]
+        \node[roundrect node] (data) {数据层\\ETL + 终版数据};
+        \node[roundrect node, right = 2.4cm of data] (model) {模型层\\票房预测 + 推荐产物};
+        \node[roundrect node, below = 1.3cm of data] (server) {统一后端\\检索/统计/RAG/Agent};
+        \node[roundrect node, right = 2.4cm of server] (rec) {推荐服务\\内容 + 协同过滤};
+        \node[roundrect node, below = 1.3cm of server] (client) {前端应用\\搜索/推荐/可视化};
+
+        \path[arrows={->[scale=1.0]}, thick]
+            (data) edge (model)
+            (data) edge (server)
+            (data) edge (rec)
+            (model) edge (server)
+            (rec) edge (server)
+            (server) edge (client);
+    \end{tikzpicture}%
+    }
+    \caption{CineScope 系统总体架构} \label{fig:architecture}
+\end{figure}
+
+架构设计遵循三项原则：（1）\textbf{训练与推理分离}，离线训练脚本将模型产物写入 \texttt{models/artifacts/}，在线服务仅加载序列化文件；（2）\textbf{推荐服务独立部署}，避免业务后端与推荐算法强耦合；（3）\textbf{可视化与推理解耦}，探索性分析模块只读终版数据，不参与在线请求链路。
+
+\section{数据处理与特征构建}
+\label{sec:method:etl}
+
+\subsection{ETL 流水线}
+
+ETL 模块位于 \texttt{etl/cinescope\_data/}，核心流程包括：
+
+\begin{enumerate}
+    \item 下载并解压 MovieLens 数据集（默认 \texttt{ml-latest-small}）；
+    \item 清洗电影、评分、标签与链接表，统一主键为 \texttt{movie\_id}；
+    \item 调用 TMDb API 拉取影片详情，并以 IMDb ID 作为财务元数据的回退匹配键；
+    \item 融合用户评分统计、标签聚合、影片文本与财务字段，输出终版 CSV/JSON 文件；
+    \item 生成 \texttt{quality\_report.json} 记录丢弃规则、缺失率与提交范围。
+\end{enumerate}
+
+在提交范围内，系统保留 \texttt{movies.csv}、\texttt{ratings.csv}、\texttt{tags.csv} 与 \texttt{genre\_stats.csv} 四类文件。电影主表包含 20 个字段，覆盖标题、年份、类型、评分统计、简介、片长、热度、预算、票房、语言与海报链接等。表~\ref{tab:movie-fields} 列出了电影主表的核心字段及其在系统中的用途。
+
+\begin{table}[htbp]
+    \centering
+    \caption{电影主表核心字段说明} \label{tab:movie-fields}
+    \begin{tabularx}{\textwidth}{|c|X|X|}
+        \hline
+        \textbf{字段} & \textbf{含义} & \textbf{主要用途} \\
+        \hline
+        movie\_id & MovieLens 电影编号 & 全局主键、关联评分与标签 \\
+        \hline
+        title\_clean & 规范化片名 & 搜索、推荐种子匹配 \\
+        \hline
+        genres\_json & 电影类型列表 & 筛选、特征编码、内容推荐 \\
+        \hline
+        rating\_mean & 平均评分 & 排序、统计分析、热门兜底 \\
+        \hline
+        overview & 剧情简介 & 文本相似度与统一搜索 \\
+        \hline
+        budget / revenue & 预算与票房 & 可视化、票房预测 \\
+        \hline
+        tmdb\_popularity & TMDb 热度 & 特征工程、相关性分析 \\
+        \hline
+    \end{tabularx}
+\end{table}
+
+\subsection{数据质量约束}
+
+为保证下游建模稳定性，ETL 实施如下约束：
+
+\begin{itemize}
+    \item 仅保留成功匹配 TMDb 详情的电影记录，最终电影数为 9727 部；
+    \item 对无 TMDb ID 的电影相关评分与标签予以剔除；
+    \item 对预算/票房字段执行外部财务元数据注入，非零票房样本 6235 条；
+    \item 输出数据集摘要与质量报告，支持 RAG 模块进行项目级问答。
+\end{itemize}
+
+\section{票房预测方法}
+\label{sec:method:revenue}
+
+\subsection{目标变量与样本筛选}
+
+票房分布呈明显右偏，直接以原始美元金额回归会导致大票房样本主导损失函数。因此，训练目标设为
+\begin{equation}
+    y = \log(1 + \text{revenue}),
+    \label{eq:log-target}
+\end{equation}
+推理阶段通过 $\exp(y)-1$ 还原至原始票房空间。训练样本仅保留 $\text{revenue} > 0$ 的电影，共 6235 条，按 8:2 划分训练集（4988）与验证集（1247）。
+
+\subsection{特征工程}
+
+特征工程由 \texttt{models/revenue\_features.py} 统一管理，共 66 维，包括：
+
+\begin{itemize}
+    \item \textbf{数值特征}（14 维）：年份、片长、TMDb 热度、预算、评分计数、评分均值/中位数、标签数等；
+    \item \textbf{类别特征}：原始语言 one-hot 编码；
+    \item \textbf{类型特征}：电影类型 one-hot 编码（由 \texttt{genres\_json} 解析）。
+\end{itemize}
+
+缺失值填充与类别取值在训练阶段拟合，并序列化至 \texttt{feature\_schema.json}，保证训练与推理一致。
+
+\subsection{集成回归模型}
+
+项目同时训练 XGBoost 与 LightGBM 两个梯度提升回归器，并在验证集上搜索最优加权比例。设两模型在 $\log$ 空间输出分别为 $\hat{y}_1,\hat{y}_2$，则集成预测为
+\begin{equation}
+    \hat{y} = w_1 \hat{y}_1 + w_2 \hat{y}_2, \quad w_1 + w_2 = 1.
+    \label{eq:ensemble}
+\end{equation}
+权重选择以验证集 $\text{RMSE}_{\log}$ 最小为准，最终得到 $w_{\text{XGB}}=0.88$、$w_{\text{LGB}}=0.12$。模型产物写入 \texttt{models/artifacts/revenue\_prediction/}，推理入口为 \texttt{models/revenue\_predictor.py}。
+
+\subsection{训练超参数}
+
+两模型均采用梯度提升回归框架，并在验证集上启用早停。XGBoost 设置学习率 $\eta=0.035$、最大树深 4、子采样率 0.85，最大迭代轮数 900、早停轮数 60，实际最优迭代为 513 轮；LightGBM 设置学习率 0.035、叶子数 31、最小叶子样本 12，同样采用 900 轮上限与 60 轮早停。该配置在控制过拟合的同时，为右偏票房目标提供了较稳定的非线性拟合能力。
+
+\subsection{特征设计说明}
+
+除原始数值字段外，特征工程还对预算、热度与评分计数执行 $\log(1+x)$ 变换，并构造 \texttt{release\_age}（以 2018 年为参考年份）刻画影片新旧程度。类别侧，原始语言与 19 类电影类型分别进行 one-hot 编码；缺失值填充策略与类别取值空间在训练阶段拟合后写入 \texttt{feature\_schema.json}，保证离线训练与后续推理使用同一套变换规则。该设计使模型能够同时利用商业指标、受众反馈与内容属性三类信息。
+
+\section{推荐系统方法}
+\label{sec:method:recommendation}
+
+推荐模块实现为独立 FastAPI 微服务，包含内容推荐与协同过滤推荐两条路径。
+
+\subsection{内容推荐}
+
+给定种子电影 $m$，系统构造两路文本表示：
+
+\begin{enumerate}
+    \item \textbf{简介通道}：将 \texttt{title\_clean} 与 \texttt{overview} 拼接后，使用字符级 TF-IDF（2--4 gram）向量化，计算余弦相似度；
+    \item \textbf{内容通道}：将标题、类型、热门标签与语言拼接为 content soup，使用 CountVectorizer 向量化后计算余弦相似度。
+\end{enumerate}
+
+两路相似度按权重融合（默认 0.55/0.45），排除种子电影自身后取 Top-$K$。该方法适合“看过 $m$，寻找内容相近电影”的场景。
+
+\subsection{协同过滤推荐}
+
+基于 610 名用户对 9727 部电影的 100811 条评分，构建稀疏评分矩阵，并实现：
+
+\begin{itemize}
+    \item \textbf{Item KNN}：以电影在全体用户上的评分向量表示影片，召回相似电影；
+    \item \textbf{User KNN}：以用户在全体电影上的评分向量表示用户，生成个性化候选。
+\end{itemize}
+
+当同时给定 \texttt{user\_id} 与 \texttt{movie\_name} 时，系统按 0.4/0.6 权重融合 Item 与 User 分数；仅给定用户时返回纯个性化列表。若近邻候选不足，则使用基于评分计数与均值的贝叶斯热门分数兜底。
+
+\subsection{离线产物构建}
+
+推荐服务不直接在线训练，而是由 \texttt{recommender/scripts/build\_all.py} 离线生成 vectorizer、稀疏矩阵与 KNN 模型，存放于 \texttt{recommender/artifacts/}。该设计保证服务启动时仅需加载产物，降低在线延迟。
+
+\section{应用层与智能问答}
+\label{sec:method:application}
+
+\subsection{统一后端}
+
+统一后端（\texttt{server/}）聚合以下能力：
+
+\begin{itemize}
+    \item \textbf{电影检索}：支持标题/简介/类型/标签统一搜索，并按类型、语言、评分过滤，同时提供分页、排序与详情查询；
+    \item \textbf{统计分析}：输出数据集摘要、类型分布、预算趋势、票房散点与相关性矩阵；
+    \item \textbf{推荐代理}：将前端请求转发至推荐微服务，并封装统一响应格式；
+    \item \textbf{RAG 检索}：对数据集摘要、质量报告与项目文档进行轻量内存检索；
+    \item \textbf{Agent 推荐}：支持自然语言偏好描述，结合 RAG 上下文生成推荐解释。
+\end{itemize}
+
+\subsection{RAG 与 Agent 工作流}
+
+RAG 模块采用轻量内存检索，索引对象包括数据集摘要、质量报告、类型统计、项目说明文档，以及由 \texttt{movies.csv} 抽取的电影画像与排行榜摘要。索引总规模约 3686 条文档，其中电影画像与排行榜文档 3680 条（覆盖评分计数不少于 10 的影片及热度 Top 3000），其余为数据集级元信息。检索阶段综合标题完全匹配、正文子串命中与 token 重叠打分，并对统计类查询提升 \texttt{dataset\_summary}、\texttt{quality\_report} 等文档权重，最终返回 Top-$K$ 上下文供下游模块使用。
+
+Agent 模块区分项目问答与电影推荐两类意图：前者经 RAG 检索后组织自然语言回答；后者先由规则解析偏好（类型、语言、评分阈值与排除项），再按场景路由至内容推荐、协同过滤或本地筛选路径，并结合推荐服务生成候选与解释。该设计将事实检索与候选生成解耦，使统计数字与电影 ID 由本地服务决定，语言模型主要负责组织可读回答。
+
+\subsection{前端交互}
+
+前端基于 React + TypeScript + Vite 实现三类页面：
+
+\begin{itemize}
+    \item \textbf{Search}：电影搜索、筛选、排序与详情面板；
+    \item \textbf{Recommend}：内容推荐、协同过滤推荐与 Agent 推荐；
+    \item \textbf{Atlas}：数据集概览、类型分布、预算趋势、气泡图与相关性视图。
+\end{itemize}
+
+表~\ref{tab:api-list} 汇总了统一后端主要 REST 接口。
+
+\begin{table}[htbp]
+    \centering
+    \caption{统一后端主要 API 接口} \label{tab:api-list}
+    \renewcommand{\arraystretch}{1.15}
+    \setlength{\tabcolsep}{8pt}
+    \begin{tabularx}{\textwidth}{|c|l|X|}
+        \hline
+        \textbf{方法} & \textbf{路径} & \textbf{功能} \\
+        \hline
+        GET  & /movies              & 电影搜索、筛选、分页与排序 \\
+        \hline
+        GET  & /movies/\{id\}       & 单部电影详情 \\
+        \hline
+        POST & /recommendations     & 内容、协同与 Agent 推荐 \\
+        \hline
+        GET  & /stats/summary       & 数据集概览统计 \\
+        \hline
+        GET  & /stats/genres        & 电影类型分布 \\
+        \hline
+        POST & /rag/search          & 项目文档与数据检索 \\
+        \hline
+        POST & /agent/chat          & 项目问答与意图识别 \\
+        \hline
+        POST & /agent/recommend     & 自然语言电影推荐 \\
+        \hline
+    \end{tabularx}
+\end{table}

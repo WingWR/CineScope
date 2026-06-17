@@ -45,16 +45,18 @@ export function VisualizationPage() {
             return (
               <button
                 className={cx(
-                  "inline-flex min-h-9 w-full items-center justify-start gap-2 rounded-lg border border-transparent bg-[rgba(255,255,255,0.04)] px-3 text-[0.9rem] text-cinema-soft transition-[background,color,transform] duration-[220ms] ease-linear hover:bg-[rgba(255,255,255,0.08)] hover:text-cinema-text",
-                  activeView === view.id && "bg-[rgba(242,177,92,0.16)] text-cinema-amber-strong hover:text-cinema-amber-strong",
+                  "inline-flex min-h-9 w-full items-center justify-start gap-2 rounded-lg border border-[rgba(244,239,228,0.14)] bg-[rgba(255,255,255,0.04)] px-3 text-[0.9rem] text-cinema-soft transition-[background,color,border-color,box-shadow,transform] duration-[220ms] ease-linear hover:border-[rgba(190,132,54,0.62)] hover:bg-[rgba(255,255,255,0.08)] hover:text-cinema-text",
+                  activeView === view.id &&
+                    "border-[rgba(190,132,54,0.9)] bg-[rgba(190,132,54,0.24)] text-cinema-amber-strong shadow-[0_0_0_1px_rgba(190,132,54,0.28),0_10px_26px_rgba(190,132,54,0.14)] hover:text-cinema-amber-strong",
                 )}
                 data-selected={activeView === view.id}
+                aria-current={activeView === view.id ? "page" : undefined}
                 key={view.id}
                 type="button"
                 onClick={() => setActiveView(view.id)}
               >
                 <Icon size={16} />
-                {view.label}
+                <span className="min-w-0 flex-1 text-left">{view.label}</span>
               </button>
             );
           })}

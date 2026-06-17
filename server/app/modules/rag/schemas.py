@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -27,8 +29,10 @@ class RagSearchRequest(BaseModel):
 
 class RagSearchResult(BaseModel):
     source: RagSource
+    title: str | None = None
     content: str
     score: float
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class RagSearchResponse(BaseModel):

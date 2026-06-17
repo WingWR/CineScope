@@ -1,4 +1,4 @@
-import { ArrowRight, Clock, DollarSign, Flame, Star } from "lucide-react";
+import { ArrowRight, Clock, DollarSign, Flame, Star, TrendingUp } from "lucide-react";
 import { formatOptionalMoney, formatOptionalRating, formatOptionalRuntime } from "../../../entities/movie/formatters";
 import type { Movie } from "../../../entities/movie/types";
 import { ConnectionNotice } from "../../../shared/ui/ConnectionNotice";
@@ -7,17 +7,19 @@ import { cx, panelClass, primaryActionClass } from "../../../shared/ui/classes";
 
 type MovieDetailPanelProps = {
   movie?: Movie;
-  onRecommend: () => void;
+  onRecommend?: (movie: Movie) => void;
+  onPredict?: (movie: Movie) => void;
+  showEmptyActionHint?: boolean;
 };
 
-export function MovieDetailPanel({ movie, onRecommend }: MovieDetailPanelProps) {
+export function MovieDetailPanel({ movie, onRecommend, onPredict, showEmptyActionHint = true }: MovieDetailPanelProps) {
   if (!movie) {
     return (
       <aside className={cx(panelClass, "sticky top-24 overflow-hidden p-[18px] max-[1180px]:static max-[1180px]:col-span-full")} aria-label="Movie details pending">
         <ConnectionNotice
           title="Waiting for movie details"
           message="After a real search result is selected, backend movie details, metrics, and recommendation actions appear here."
-          actionHint="Suggested detail fields: title/year/genres/overview/ratingMean/revenue/posterUrl/backdropUrl"
+          actionHint={showEmptyActionHint ? "Suggested detail fields: title/year/genres/overview/ratingMean/revenue/posterUrl/backdropUrl" : undefined}
         />
       </aside>
     );
@@ -77,10 +79,24 @@ export function MovieDetailPanel({ movie, onRecommend }: MovieDetailPanelProps) 
           ) : null}
         </div>
 
-        <button className={primaryActionClass} type="button" onClick={onRecommend}>
-          Recommended seed
-          <ArrowRight size={16} />
-        </button>
+        <div className="grid gap-2">
+          {onRecommend ? (
+            <button className={primaryActionClass} type="button" onClick={() => onRecommend(movie)}>
+              Recommend seed
+              <ArrowRight size={16} />
+            </button>
+          ) : null}
+          {onPredict ? (
+            <button
+              className="inline-flex min-h-11 items-center justify-center gap-[9px] rounded-lg border border-[rgba(85,214,194,0.3)] bg-[rgba(85,214,194,0.08)] px-4 font-[760] text-cinema-teal transition-[filter,transform,border-color,background] duration-[220ms] ease-linear hover:-translate-y-0.5 hover:border-[rgba(85,214,194,0.55)] hover:bg-[rgba(85,214,194,0.16)]"
+              type="button"
+              onClick={() => onPredict(movie)}
+            >
+              Predict revenue
+              <TrendingUp size={16} />
+            </button>
+          ) : null}
+        </div>
       </div>
     </aside>
   );

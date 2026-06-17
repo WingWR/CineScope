@@ -1,0 +1,21 @@
+{
+  "created_at": "2026-06-15T07:56:03.291566+00:00",
+  "data_path": "E:\\Tempory\\CineScope\\data\\final\\movies.csv",
+  "source_rows": 9727,
+  "train_rows": 4988,
+  "valid_rows": 1247,
+  "feature_count": 66,
+  "valid_size": 0.2,
+  "random_state": 42,
+  "target": "log1p(revenue)",
+  "lightgbm": {
+    "metrics": {
+      "rmse_log": 1.2957269646973646,
+      "mae_log": 0.8678909363684831,
+      "r2_log": 0.6405144491887027,
+      "rmse_revenue": 96709224.58171134,
+      "mae_revenue": 39826785.582589686,
+      "mape_revenue": 419.4787420268798
+    }
+  }
+}
