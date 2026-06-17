@@ -1,0 +1,71 @@
+\tongjisetup{
+  %******************************
+  % 注意：
+  %   1. 配置里面不要出现空行
+  %   2. 不需要的配置信息可以删除
+  %******************************
+  secretlevel={公开},
+  secretyear={0},
+  %
+  ctitle={CineScope：面向电影数据的\\分析与推荐系统设计与实现},
+  csubjectcategory={工学},
+  cmajorfirst={计算机科学与技术},
+  cmajorsecond={软件工程},
+  cresearchfield={数据分析与数据挖掘},
+  cdate={\zhdigits{2026}年\zhnumber{6}月}
+}
+
+% 后处理
+\makeatletter
+\define@key{tongji}{cheadingtitlenew}{\cheadingtitlenew{#1}}
+\gdef\cheadingtitlenew#1{\gdef\tongji@cheadingtitlenew{#1}}
+\tongjideletelinebreakcmd{tongji@ctitle}{tongji@posttitle}
+\cheadingtitlenew{\tongji@posttitle}
+
+% 课程论文封面：去除学位论文字样、院系，加入小组与指导老师信息
+\renewcommand{\chicover}{%
+  \begin{center}
+    \parbox[t][1.8cm][t]{\textwidth}{
+      \centering\hspace*{.3cm}
+      \includegraphics[width=10cm]{tongji-whole-logo.pdf}
+    }
+    \\[-.3cm]
+    \parbox[t][5cm][t]{\paperwidth-7cm}{
+      \begin{center}
+        \erhao[1]{{\bfseries\lishu 课程论文}} \par\vskip 0.8cm
+        \parbox[t]{\paperwidth-7cm}{\begin{center}\zihao{-4}\linespread{1.0}\selectfont
+          \erhao[2]{\bfseries\sffamily\tongji@ctitle}
+        \end{center}}
+      \end{center}
+    }
+    \par\vskip 2.2cm
+    \hspace*{1.2cm}
+    \parbox[t][9cm][t]{\textwidth}{%
+      {\fangsong\sanhao[1.5]
+      \begin{center}
+        \setlength{\extrarowheight}{6pt}
+        \setlength{\tongji@title@width}{4em}
+        \begin{tabular}{p{\tongji@title@width}@{}c@{\extracolsep{8pt}}p{9.5cm}}
+          \tongji@put@title{课程名称} & \tongji@title@sep & 数据挖掘与数据分析 \\
+          \tongji@put@title{组号}   & \tongji@title@sep & 第17组 \\
+          \tongji@put@title{小组成员}   & \tongji@title@sep & 王雷（2351299）、黄景胤（2351129）、周达（2354185）、林琪（2352609） \\
+          \tongji@put@title{指导老师} & \tongji@title@sep & 赵钦佩 \\
+        \end{tabular}
+      \end{center}}
+    }
+    \begin{center}
+      {\songti\sanhao\tongji@cdate}
+    \end{center}
+  \end{center}
+}
+\makeatother
+
+\begin{cabstract}
+  随着在线流媒体平台的普及，电影数据呈现出规模庞大、结构异构、关联复杂等特点。如何从多源异构数据中完成清洗融合，并进一步支撑检索、可视化、票房预测与个性化推荐，是数据挖掘领域具有代表性的工程问题。针对这些问题，我们设计并实现了一套面向电影数据的分析与推荐系统 CineScope。
+
+  系统以 MovieLens、TMDb 与 IMDb 等多源数据为基础，构建了包含数据抽取、转换与加载（ETL）、探索性可视化、票房回归建模、内容推荐与协同过滤推荐、统一后端聚合以及前端交互展示的完整技术链路。在数据层，项目最终产出 9727 部电影、100811 条用户评分与 3678 条用户标签；在模型层，采用 XGBoost 与 LightGBM 加权融合完成票房预测，在验证集上取得 $R^2_{\log} \approx 0.65$；在推荐层，分别基于字符级 TF-IDF/词袋相似度与 Item/User KNN 实现内容推荐和协同过滤推荐，并通过独立微服务对外提供 HTTP 接口；在应用层，基于 React 与 FastAPI 实现电影搜索、统计可视化、RAG 问答与 Agent 推荐等功能。
+
+  实验结果表明，CineScope 能够在统一架构下有效整合数据处理、机器学习推理与交互式服务，形成可复现、可扩展的电影数据分析工程范式。特征重要性与相关性分析进一步表明，预算与热度是票房预测的主导信号；内容推荐与协同过滤则在同系列召回与用户行为召回之间形成互补。本文还对系统局限性进行了讨论，并提出了后续在推荐评估、混合推荐与语义检索方面的改进方向。
+\end{cabstract}
+
+\ckeywords{电影数据挖掘；推荐系统；票房预测；数据可视化}

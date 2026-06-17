@@ -23,3 +23,6 @@ client/.idea/
 client/.vite-dev*.log
 client/*.tsbuildinfo
 client/node_modules/.tmp/
+
+# macOS
+.DS_Store

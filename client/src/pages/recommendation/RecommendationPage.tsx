@@ -1,4 +1,4 @@
-import { Bot, Film, Layers3, ListFilter, MessageSquareText, Sparkles } from "lucide-react";
+import { Bot, Film, Layers3, ListFilter, Loader, MessageSquareText, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Movie, RecommendationMode, RecommendationRequest } from "../../entities/movie/types";
 import { ConnectionNotice } from "../../shared/ui/ConnectionNotice";
@@ -177,12 +177,26 @@ export function RecommendationPage({ initialSeedMovie }: RecommendationPageProps
                   </label>
 
                   <button
-                    className={cx(primaryActionClass, "min-h-[42px] w-full whitespace-nowrap")}
+                    className={cx(
+                      primaryActionClass,
+                      "min-h-[42px] w-full whitespace-nowrap",
+                      isLoading && "pointer-events-none opacity-70",
+                    )}
+                    disabled={isLoading}
                     type="button"
                     onClick={() => requestRecommendations(draftRequest)}
                   >
-                    Request recommendations
-                    <Sparkles size={16} />
+                    {isLoading ? (
+                      <>
+                        <Loader size={16} className="animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        Request recommendations
+                        <Sparkles size={16} />
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -211,12 +225,26 @@ export function RecommendationPage({ initialSeedMovie }: RecommendationPageProps
                 </label>
 
                 <button
-                  className={cx(primaryActionClass, "min-h-[42px] min-w-[218px] self-end whitespace-nowrap max-[900px]:col-span-full max-[900px]:justify-self-end max-[640px]:w-full max-[640px]:justify-self-stretch")}
+                  className={cx(
+                    primaryActionClass,
+                    "min-h-[42px] min-w-[218px] self-end whitespace-nowrap max-[900px]:col-span-full max-[900px]:justify-self-end max-[640px]:w-full max-[640px]:justify-self-stretch",
+                    isLoading && "pointer-events-none opacity-70",
+                  )}
+                  disabled={isLoading}
                   type="button"
                   onClick={() => requestRecommendations(draftRequest)}
                 >
-                  Request recommendations
-                  <Sparkles size={16} />
+                  {isLoading ? (
+                    <>
+                      <Loader size={16} className="animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      Request recommendations
+                      <Sparkles size={16} />
+                    </>
+                  )}
                 </button>
               </div>
             )}

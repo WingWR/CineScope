@@ -62,7 +62,10 @@ class RevenuePredictor:
     def _load_lightgbm_model(path: Path):
         import lightgbm as lgb
 
-        return lgb.Booster(model_file=str(path))
+        # Read as text so CRLF → LF conversion happens; LightGBM 4.5.0
+        # model_file= can choke on Windows line endings in text-format models.
+        model_text = path.read_text(encoding="utf-8")
+        return lgb.Booster(model_str=model_text)
 
     @staticmethod
     def _load_weights(path: Path) -> dict[str, float]:
