@@ -131,21 +131,8 @@ data/final/quality_report.json
 
 Python 依赖：
 
-```text
-server/requirements.txt
-recommender/requirements.txt
-```
-
-安装后端依赖：
-
-```python
-pip install -r server\requirements.txt
-```
-
-安装推荐服务依赖：
-
-```python
-pip install -r recommender\requirements.txt
+```powershell
+pip install -r requirements.txt
 ```
 
 安装前端依赖：

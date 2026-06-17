@@ -128,7 +128,7 @@
 - 完成的具体代码/配置/文档文件：
   - `server/API_CONTRACT.md`
   - `server/README.md`
-  - `server/requirements.txt`
+  - `requirements.txt`
   - `server/app/main.py`
   - `server/app/__init__.py`
   - `server/app/core/config.py`
@@ -185,7 +185,7 @@
 ## 成员 4：林琪 2352609
 
 - 负责/撰写的项目报告文件：
-  - `report.pdf`
+  - `thesis.pdf`
   - `project_plan.md`
   - `teamwork.md`
   - `poster.pdf`

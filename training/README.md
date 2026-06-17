@@ -14,7 +14,7 @@
 ## 运行方式
 
 ```powershell
-python -m pip install -r training/requirements.txt
+python -m pip install -r requirements.txt
 python -m training.train_ensemble
 ```
 

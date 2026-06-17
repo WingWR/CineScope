@@ -19,7 +19,7 @@ def train_lightgbm_regressor(
     except ImportError as exc:
         raise ImportError(
             "lightgbm is required. Install training dependencies with: "
-            "python -m pip install -r training/requirements.txt"
+            "python -m pip install -r requirements.txt"
         ) from exc
 
     model_params = dict(LIGHTGBM_PARAMS)
